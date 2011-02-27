@@ -7,7 +7,7 @@
 void *xmalloc(size_t size) {
     void *p = malloc(size);
     if (!p) {
-        fprintf(stderr, "xmalloc: malloc returned NULL\n");
+        fprintf(stderr, "xmalloc: malloc(%li) returned NULL\n", size);
         abort();
     }
     return p;
