@@ -26,7 +26,7 @@ static mem_region_t *find_region(mem_t *m, uint32_t addr);
 
 mem_t *mem_create(void)
 {
-    mem_t *m = xmalloc(sizeof(mem_t));
+    mem_t *m = xmalloc(sizeof(*m));
     m->regions = NULL;
     return m;
 }
@@ -43,7 +43,7 @@ mem_region_t *mem_map(mem_t *m, uint32_t base, mem_dev_t *d)
 {
     mem_region_t *r;
 
-    r = xmalloc(sizeof(*d));
+    r = xmalloc(sizeof(*r));
     r->base = base;
     r->dev = d;
     r->mem = m;
