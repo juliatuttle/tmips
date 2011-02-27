@@ -10,7 +10,7 @@
 
 typedef struct serial_dev serial_dev_t;
 struct serial_dev {
-    mem_dev_t mem;
+    mem_dev_t dev;
     int infd;
     int outfd;
 };
@@ -20,38 +20,38 @@ static int serial_write(mem_dev_t *dev, uint32_t offset, uint32_t val, uint8_t w
 
 mem_dev_t *serial_create(int infd, int outfd)
 {
-    serial_dev_t *dev;
+    serial_dev_t *ser;
 
-    dev = xmalloc(sizeof(*dev));
-    dev->mem.size = 0x4;
-    dev->mem.read = &serial_read;
-    dev->mem.write = &serial_write;
-    dev->infd = infd;
-    dev->outfd = outfd;
+    ser = xmalloc(sizeof(*ser));
+    ser->dev.size = 0x4;
+    ser->dev.read = &serial_read;
+    ser->dev.write = &serial_write;
+    ser->infd = infd;
+    ser->outfd = outfd;
 
-    return (mem_dev_t *)dev;
+    return (mem_dev_t *)ser;
 }
 
-void serial_destroy(mem_dev_t *_dev)
+void serial_destroy(mem_dev_t *dev)
 {
-    serial_dev_t *dev = (serial_dev_t *)_dev;
+    serial_dev_t *ser = (serial_dev_t *)dev;
 
-    close(dev->infd);
-    if (dev->outfd != dev->infd) {
-        close(dev->outfd);
+    close(ser->infd);
+    if (ser->outfd != ser->infd) {
+        close(ser->outfd);
     }
-    free(dev);
+    free(ser);
 }
 
-static int serial_read(mem_dev_t *_dev, uint32_t offset, uint32_t *val_out)
+static int serial_read(mem_dev_t *dev, uint32_t offset, uint32_t *val_out)
 {
-    serial_dev_t *dev = (serial_dev_t *)_dev;
+    serial_dev_t *ser = (serial_dev_t *)dev;
     char c;
     int ret;
 
     assert(offset == 0);
 
-    ret = read(dev->infd, &c, 1);
+    ret = read(ser->infd, &c, 1);
     if (ret > 0) {
         *val_out = 0x100 | c;
     } else {
@@ -61,9 +61,9 @@ static int serial_read(mem_dev_t *_dev, uint32_t offset, uint32_t *val_out)
     return 0;
 }
 
-static int serial_write(mem_dev_t *_dev, uint32_t offset, uint32_t val, uint8_t we)
+static int serial_write(mem_dev_t *dev, uint32_t offset, uint32_t val, uint8_t we)
 {
-    serial_dev_t *dev = (serial_dev_t *)_dev;
+    serial_dev_t *ser = (serial_dev_t *)dev;
     char c;
     int ret;
 
@@ -75,7 +75,7 @@ static int serial_write(mem_dev_t *_dev, uint32_t offset, uint32_t val, uint8_t 
 
     c = val & 0xFF;
 
-    ret = write(dev->outfd, &c, 1);
+    ret = write(ser->outfd, &c, 1);
     if (ret == 0) {
         fprintf(stderr, "serial_write: short write\n");
     } else if (ret < 0) {
