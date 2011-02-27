@@ -1,0 +1,6 @@
+tmips is a small MIPS simulator for the subset of MIPS implemented by
+students in Carnegie Mellon's Introduction to Computer Architecture course
+(18-447).
+
+Author:
+    Thomas Tuttle <ttuttle@ttuttle.net>
