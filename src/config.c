@@ -15,12 +15,20 @@
 #include "readmemh.h"
 #include "serial.h"
 
+static void version(void);
+static void usage(char *progn);
 static int do_region(mem_t *mem, uint32_t base, uint32_t size, char *file);
 
 int config_parse_args(config_t *cfg, int argc, char *argv[])
 {
     int i;
     int saw_dump_file = 0;
+
+    if (argc < 2) {
+        fprintf(stderr,
+            "Warning: Processors tend to be unhappy with nothing on their bus.\n"
+            "(Run \"%s --help\" for help.)\n", argv[0]);
+    }
 
     for (i = 1; i < argc; ) {
         if (!strcmp(argv[i], "--region") || !strcmp(argv[i], "-r")) {
@@ -45,7 +53,7 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
                 return 1;
             }
             i += 4;
-        } else if (!strcmp(argv[i], "--pc")) {
+        } else if (!strcmp(argv[i], "--pc") || !strcmp(argv[i], "-p")) {
             uint32_t pc;
             char *end;
 
@@ -60,7 +68,7 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             }
             cfg->pc = pc;
             i += 2;
-        } else if (!strcmp(argv[i], "--dump")) {
+        } else if (!strcmp(argv[i], "--dump") || !strcmp(argv[i], "-d")) {
             if (argc - i < 1) {
                 fprintf(stderr, "--dump: expected <dump-file>\n");
                 return 1;
@@ -76,7 +84,7 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             }
             saw_dump_file = 1;
             i += 2;
-        } else if (!strcmp(argv[i], "--console")) {
+        } else if (!strcmp(argv[i], "--console") || !strcmp(argv[i], "-c")) {
             uint32_t addr;
             char *end;
 
@@ -91,6 +99,12 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             }
             mem_map(cfg->mem, addr, serial_create(0, 1));
             i += 2;
+        } else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
+            usage(argv[0]);
+            return 1;
+        } else if (!strcmp(argv[i], "--version") || !strcmp(argv[i], "-V")) {
+            version();
+            return 1;
         } else {
             fprintf(stderr, "Invalid argument \"%s\"\n", argv[i]);
             return 1;
@@ -98,6 +112,42 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
     }
 
     return 0;
+}
+
+static void version(void)
+{
+    printf(
+        "tmips 0.1.0 \"I Feel Fantastic\"\n"
+        "Copyright (C) 2011 Thomas Tuttle\n"
+        "This is free software, and comes with no warranty.\n"
+        "See COPYING for details.\n");
+}
+
+static void usage(char *progn)
+{
+    printf(
+        "Usage: %s <options>\n"
+        "\n"
+        "    --region|-r <base> <size> <file>\n"
+        "        Maps RAM at the specified base address and size, and loads the\n"
+        "        specified readmemh-format file at that address.\n"
+        "\n"
+        "    --pc|-p <addr>\n"
+        "        Sets the initial value of the program counter.\n"
+        "\n"
+        "    --dump|-d <file>\n"
+        "        Dumps the final state of the machine's registers to the specified\n"
+        "        file.  (If unspecified, the state is dumped to standard output.)\n"
+        "\n"
+        "    --console|-c <addr>\n"
+        "        Maps a serial console (connected to stdio) at the specified address.\n"
+        "\n"
+        "    --help|-h\n"
+        "        Shows this help screen.\n"
+        "\n"
+        "    --version|-V\n"
+        "        Prints the program version.\n"
+        "\n", progn);
 }
 
 static int do_region(mem_t *mem, uint32_t base, uint32_t size, char *file)
