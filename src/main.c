@@ -7,7 +7,7 @@
 
 #include "config.h"
 #include "core.h"
-#include "error.h"
+#include "exc.h"
 #include "mem.h"
 #include "ram.h"
 #include "readmemh.h"
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
         ret = core_step(c.core);
     } while (ret == EXC_NONE);
 
-    fprintf(c.dump_file, "Halted: %s.\n", err_text[ret]);
+    fprintf(c.dump_file, "Halted: %s.\n", exc_text[ret]);
     core_dump_regs(c.core, c.dump_file);
 
     return 0;

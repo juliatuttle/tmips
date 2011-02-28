@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "core.h"
-#include "error.h"
+#include "exc.h"
 #include "opcode.h"
 #include "util.h"
 
