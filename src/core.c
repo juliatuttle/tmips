@@ -64,7 +64,7 @@ int core_step(core_t *c)
     uint32_t newpc;
     uint8_t b; uint16_t h; uint32_t w;
 
-    if (rdw(c, c->pc, &ins)) { return ERR_MEM; }
+    if (rdw(c, c->pc, &ins)) { return EXC_IBE; }
 
 #ifdef DEBUG_TRACE_STEP
     fprintf(stderr, "core_step: fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) from %08x\n",
@@ -86,69 +86,69 @@ int core_step(core_t *c)
             c->r[RD(ins)] = SRA(c->r[RT(ins)], SA(ins));
             break;
         case FUNCT_SLLV:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = c->r[RT(ins)] << (c->r[RS(ins)] & 0x1F);
             break;
         case FUNCT_SRLV:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = c->r[RT(ins)] >> (c->r[RS(ins)] & 0x1F);
             break;
         case FUNCT_SRAV:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = SRA(c->r[RT(ins)], c->r[RS(ins)] & 0x1F);
             break;
         case FUNCT_JR:
-            if ((RT(ins) != 0) || (RD(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RT(ins) != 0) || (RD(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             newpc = c->r[RS(ins)];
             break;
         case FUNCT_JALR:
-            if ((RT(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             c->r[RD(ins)] = c->pc + 4;
             newpc = c->r[RS(ins)];
             break;
         case FUNCT_SYSCALL:
-            return ERR_SYSCALL;
+            return EXC_SYS;
             break;
         case FUNCT_ADD:
-            if (add_overflows(c->r[RS(ins)], c->r[RT(ins)])) { return ERR_OFLOW; }
+            if (add_overflows(c->r[RS(ins)], c->r[RT(ins)])) { return EXC_OV; }
             /* Fall through. */
         case FUNCT_ADDU:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = c->r[RS(ins)] + c->r[RT(ins)];
             break;
         case FUNCT_SUB:
-            if (sub_overflows(c->r[RS(ins)], c->r[RT(ins)])) { return ERR_OFLOW; }
+            if (sub_overflows(c->r[RS(ins)], c->r[RT(ins)])) { return EXC_OV; }
             /* Fall through. */
         case FUNCT_SUBU:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = c->r[RS(ins)] - c->r[RT(ins)];
             break;
         case FUNCT_AND:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = c->r[RS(ins)] & c->r[RT(ins)];
             break;
         case FUNCT_OR:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = c->r[RS(ins)] | c->r[RT(ins)];
             break;
         case FUNCT_XOR:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = c->r[RS(ins)] ^ c->r[RT(ins)];
             break;
         case FUNCT_NOR:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = ~(c->r[RS(ins)] | c->r[RT(ins)]);
             break;
         case FUNCT_SLT:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = (((int32_t)c->r[RS(ins)]) < ((int32_t)c->r[RT(ins)])) ? 1 : 0;
             break;
         case FUNCT_SLTU:
-            if (SA(ins) != 0) { return ERR_INS; }
+            if (SA(ins) != 0) { return EXC_RI; }
             c->r[RD(ins)] = (c->r[RS(ins)] < c->r[RT(ins)]) ? 1 : 0;
             break;
         case FUNCT_MULT:
-            if ((RD(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RD(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             {
                 int64_t s = (int64_t)((int32_t)c->r[RS(ins)]);
                 int64_t t = (int64_t)((int32_t)c->r[RT(ins)]);
@@ -156,27 +156,27 @@ int core_step(core_t *c)
             }
             break;
         case FUNCT_MFHI:
-            if ((RS(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RS(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             c->r[RD(ins)] = c->hi;
             break;
         case FUNCT_MFLO:
-            if ((RS(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RS(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             c->r[RD(ins)] = c->lo;
             break;
         case FUNCT_MTHI:
-            if ((RD(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RD(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             c->hi = c->r[RS(ins)];
             break;
         case FUNCT_MTLO:
-            if ((RD(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RD(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             c->lo = c->r[RS(ins)];
             break;
         case FUNCT_MULTU:
-            if ((RD(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RD(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             set_hilo(c, (uint64_t)c->r[RS(ins)] * (uint64_t)c->r[RT(ins)]);
             break;
         case FUNCT_DIV:
-            if ((RD(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RD(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             if (c->r[RT(ins)] != 0) {
                 c->lo = (uint32_t)(((int32_t)c->r[RS(ins)]) / ((int32_t)c->r[RT(ins)]));
                 c->hi = (uint32_t)(((int32_t)c->r[RS(ins)]) % ((int32_t)c->r[RT(ins)]));
@@ -186,7 +186,7 @@ int core_step(core_t *c)
             }
             break;
         case FUNCT_DIVU:
-            if ((RD(ins) != 0) || (SA(ins) != 0)) { return ERR_INS; }
+            if ((RD(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
             if (c->r[RT(ins)] != 0) {
                 c->lo = c->r[RS(ins)] / c->r[RT(ins)];
                 c->hi = c->r[RS(ins)] % c->r[RT(ins)];
@@ -196,7 +196,7 @@ int core_step(core_t *c)
             }
         default:
             fprintf(stderr, "core_step: unimplemented SPECIAL function %03o\n", FUNCT(ins));
-            return ERR_INS;
+            return EXC_RI;
         }
         break;
     case OP_REGIMM:
@@ -219,7 +219,7 @@ int core_step(core_t *c)
             break;
         default:
             fprintf(stderr, "core_step: unimplemented REGIMM rt %03o\n", RT(ins));
-            return ERR_INS;
+            return EXC_RI;
         }
         break;
     case OP_JAL:
@@ -239,19 +239,19 @@ int core_step(core_t *c)
         }
         break;
     case OP_BLEZ:
-        if (RT(ins) != 0) { return ERR_INS; }
+        if (RT(ins) != 0) { return EXC_RI; }
         if ((int32_t)c->r[RS(ins)] <= 0) {
             newpc = BRANCH_TARGET(c, ins);
         }
         break;
     case OP_BGTZ:
-        if (RT(ins) != 0) { return ERR_INS; }
+        if (RT(ins) != 0) { return EXC_RI; }
         if ((int32_t)c->r[RS(ins)] > 0) {
             newpc = BRANCH_TARGET(c, ins);
         }
         break;
     case OP_ADDI:
-        if (add_overflows(c->r[RS(ins)], SIMMED(ins))) { return ERR_OFLOW; }
+        if (add_overflows(c->r[RS(ins)], SIMMED(ins))) { return EXC_OV; }
         /* Fall through. */
     case OP_ADDIU:
         c->r[RT(ins)] = c->r[RS(ins)] + SIMMED(ins);
@@ -272,50 +272,52 @@ int core_step(core_t *c)
         c->r[RT(ins)] = c->r[RS(ins)] ^ IMMED(ins);
         break;
     case OP_LUI:
-        if (RS(ins) != 0) return ERR_INS;
+        if (RS(ins) != 0) return EXC_RI;
         c->r[RT(ins)] = IMMED(ins) << 16;
         break;
     case OP_LB:
-        if (rdb(c, ADDR(c, ins), &b)) { return ERR_MEM; }
+        /* XXX: Alignment errors should generate EXC_ADEL/EXC_ADES, not
+         * EXC_DBE. */
+        if (rdb(c, ADDR(c, ins), &b)) { return EXC_DBE; }
         c->r[RT(ins)] = SE8(b);
         break;
     case OP_LH:
-        if (rdh(c, ADDR(c, ins), &h)) { return ERR_MEM; }
+        if (rdh(c, ADDR(c, ins), &h)) { return EXC_DBE; }
         c->r[RT(ins)] = SE16(h);
         break;
     case OP_LW:
-        if (rdw(c, ADDR(c, ins), &w)) { return ERR_MEM; }
+        if (rdw(c, ADDR(c, ins), &w)) { return EXC_DBE; }
         c->r[RT(ins)] = w;
         break;
      case OP_LBU:
-        if (rdb(c, ADDR(c, ins), &b)) { return ERR_MEM; }
+        if (rdb(c, ADDR(c, ins), &b)) { return EXC_DBE; }
         c->r[RT(ins)] = (uint32_t)b;
         break;
     case OP_LHU:
-        if (rdh(c, ADDR(c, ins), &h)) { return ERR_MEM; }
+        if (rdh(c, ADDR(c, ins), &h)) { return EXC_DBE; }
         c->r[RT(ins)] = (uint32_t)h;
         break;
     case OP_SB:
         b = (uint8_t)c->r[RT(ins)];
-        if (wrb(c, ADDR(c, ins), b)) { return ERR_MEM; }
+        if (wrb(c, ADDR(c, ins), b)) { return EXC_DBE; }
         break;
     case OP_SH:
         h = (uint16_t)c->r[RT(ins)];
-        if (wrh(c, ADDR(c, ins), h)) { return ERR_MEM; }
+        if (wrh(c, ADDR(c, ins), h)) { return EXC_DBE; }
         break;
     case OP_SW:
         w = c->r[RT(ins)];
-        if (wrw(c, ADDR(c, ins), w)) { return ERR_MEM; }
+        if (wrw(c, ADDR(c, ins), w)) { return EXC_DBE; }
         break;
     default:
         fprintf(stderr, "core_step: unhandled OP %03o\n", OP(ins));
-        return ERR_INS;
+        return EXC_RI;
     }
 
     c->pc = newpc;
     c->r[0] = 0; /* ...damnit! */
 
-    return 0;
+    return EXC_NONE;
 }
 
 void core_dump_regs(core_t *c, FILE *out)
@@ -352,7 +354,7 @@ static int rdh(core_t *c, uint32_t addr, uint16_t *out)
     uint32_t w;
     int ret;
 
-    if (addr & 0x1) { return 1; }
+    if (addr & 0x1) { return EXC_ADEL; }
 
     w_addr = addr & ~0x3;
 
@@ -363,7 +365,7 @@ static int rdh(core_t *c, uint32_t addr, uint16_t *out)
 
 static int rdw(core_t *c, uint32_t addr, uint32_t *out)
 {
-    if (addr & 0x3) { return 1; }
+    if (addr & 0x3) { return EXC_ADEL; }
 
     return mem_read(c->mem, addr, out);
 }
@@ -386,7 +388,7 @@ static int wrh(core_t *c, uint32_t addr, uint16_t in)
     uint32_t w_addr;
     int offset;
 
-    if (addr & 0x1) { return 1; }
+    if (addr & 0x1) { return EXC_ADES; }
 
     w_addr = addr & ~0x3;
     offset = addr &  0x3;
@@ -398,7 +400,7 @@ static int wrh(core_t *c, uint32_t addr, uint16_t in)
 
 static int wrw(core_t *c, uint32_t addr, uint32_t in)
 {
-    if (addr & 0x3) { return ERR_MEM; }
+    if (addr & 0x3) { return EXC_ADES; }
 
     return mem_write(c->mem, addr, in, 0xF);
 }

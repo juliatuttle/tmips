@@ -29,10 +29,9 @@ int main(int argc, char *argv[])
 
     core_set_pc(c.core, c.pc);
 
-    while (1) {
+    do {
         ret = core_step(c.core);
-        if (ret) { break; }
-    }
+    } while (ret == EXC_NONE);
 
     fprintf(c.dump_file, "Halted: %s.\n", err_text[ret]);
     core_dump_regs(c.core, c.dump_file);
