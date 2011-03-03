@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "core.h"
+#include "filter.h"
 #include "mem.h"
 
 typedef struct config config_t;
@@ -14,6 +15,7 @@ struct config {
     mem_t *mem;
     uint32_t pc;
     FILE *dump_file;
+    filter_t *filter;
 };
 
 int config_parse_args(config_t *cfg, int argc, char *argv[]);

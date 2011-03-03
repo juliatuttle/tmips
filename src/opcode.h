@@ -45,6 +45,8 @@ enum {
     OP_SH      = 051,
 
     OP_SW      = 053,
+
+    NUM_OPS   = 0100
 };
 
 enum {
@@ -80,6 +82,8 @@ enum {
 
     FUNCT_SLT     = 052,
     FUNCT_SLTU    = 053,
+
+    NUM_FUNCTS   = 0100
 };
 
 enum {
@@ -88,6 +92,8 @@ enum {
 
     REGIMM_BLTZAL = 020,
     REGIMM_BGEZAL = 021,
+
+    NUM_REGIMMS   = 040
 };
 
 #endif

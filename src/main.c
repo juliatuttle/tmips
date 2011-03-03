@@ -21,6 +21,7 @@ int main(int argc, char *argv[])
     c.core = core_create(c.mem);
     c.pc = 0;
     c.dump_file = stdout;
+    c.filter = NULL;
 
     ret = config_parse_args(&c, argc, argv);
     if (ret) {
@@ -28,6 +29,7 @@ int main(int argc, char *argv[])
     }
 
     core_set_pc(c.core, c.pc);
+    core_set_filter(c.core, c.filter);
 
     while (1) {
         ret = core_step(c.core);

@@ -4,6 +4,7 @@
 
 #include "core.h"
 #include "error.h"
+#include "filter.h"
 #include "opcode.h"
 #include "util.h"
 
@@ -11,6 +12,7 @@
 
 struct core {
     mem_t *mem;
+    filter_t *filter;
     uint32_t r[NUM_REGS];
     uint32_t hi;
     uint32_t lo;
@@ -33,6 +35,7 @@ core_t *core_create(mem_t *m)
     core_t *c = xmalloc(sizeof(*c));
     memset(c, 0, sizeof(*c));
     c->mem = m;
+    c->filter = NULL;
     return c;
 }
 
@@ -44,6 +47,11 @@ void core_destroy(core_t *c)
 void core_set_pc(core_t *c, uint32_t pc)
 {
     c->pc = pc;
+}
+
+void core_set_filter(core_t *c, filter_t *f)
+{
+    c->filter = f;
 }
 
 #define SE8(b) ((uint32_t)((int32_t)((int8_t)(b))))
@@ -65,6 +73,15 @@ int core_step(core_t *c)
     uint8_t b; uint16_t h; uint32_t w;
 
     if (rdw(c, c->pc, &ins)) { return ERR_MEM; }
+
+    if (c->filter) {
+        if (!filter_ins_allowed(c->filter, ins)) {
+            fprintf(stderr,
+                    "Instruction %08x at %08x disallowed by filter.\n",
+                    ins, c->pc);
+            return ERR_FILTER;
+        }
+    }
 
 #ifdef DEBUG_TRACE_STEP
     fprintf(stderr, "core_step: fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) from %08x\n",

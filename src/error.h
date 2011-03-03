@@ -6,6 +6,7 @@ enum {
     ERR_MEM,
     ERR_OFLOW,
     ERR_SYSCALL,
+    ERR_FILTER,
     NUM_ERRS
 };
 
