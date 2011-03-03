@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "core.h"
+#include "cp0.h"
 #include "exc.h"
 #include "opcode.h"
 #include "util.h"
@@ -15,6 +16,9 @@ struct core {
     uint32_t hi;
     uint32_t lo;
     uint32_t pc;
+
+    uint32_t cp0_r[MAX_CP0];
+    uint8_t cp0_half_step;
 };
 
 static int rdb(core_t *c, uint32_t addr, uint8_t *out);
@@ -39,6 +43,8 @@ void core_reset(core_t *c)
 {
     memset(c->r, 0, sizeof(c->r));
     c->hi = c->lo = c->pc = 0;
+    memset(c->cp0_r, 0, sizeof(c->cp0_r));
+    c->cp0_half_step = 0;
 }
 
 void core_destroy(core_t *c)
