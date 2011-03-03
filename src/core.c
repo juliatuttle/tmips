@@ -33,10 +33,15 @@ static int sub_overflows(uint32_t a, uint32_t b);
 core_t *core_create(mem_t *m)
 {
     core_t *c = xmalloc(sizeof(*c));
-    memset(c, 0, sizeof(*c));
     c->mem = m;
     c->filter = NULL;
     return c;
+}
+
+void core_reset(core_t *c)
+{
+    memset(c->r, 0, sizeof(c->r));
+    c->hi = c->lo = c->pc = 0;
 }
 
 void core_destroy(core_t *c)
