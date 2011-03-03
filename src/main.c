@@ -32,9 +32,9 @@ int main(int argc, char *argv[])
 
     do {
         ret = core_step(c.core);
-    } while (ret == EXC_NONE);
+    } while (!ret);
 
-    fprintf(c.dump_file, "Halted: %s.\n", exc_text[ret]);
+    fprintf(c.dump_file, "Halted: %s.\n", /* exc_text[ret] */ "TODO");
     core_dump_regs(c.core, c.dump_file);
 
     return 0;

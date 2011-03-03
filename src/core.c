@@ -3,7 +3,8 @@
 #include <string.h>
 
 #include "core.h"
-#include "cp0.h"
+#include "core_priv.h"
+#include "core_cp0.h"
 #include "exc.h"
 #include "opcode.h"
 #include "util.h"
@@ -17,17 +18,18 @@ struct core {
     uint32_t lo;
     uint32_t pc;
 
-    uint32_t cp0_r[MAX_CP0];
-    uint8_t cp0_half_step;
+    core_cp0_t cp0;
 };
 
 static int rdb(core_t *c, uint32_t addr, uint8_t *out);
 static int rdh(core_t *c, uint32_t addr, uint16_t *out);
 static int rdw(core_t *c, uint32_t addr, uint32_t *out);
+static int rdiw(core_t *c, uint32_t addr, uint32_t *out);
 static int wrb(core_t *c, uint32_t addr, uint8_t in);
 static int wrh(core_t *c, uint32_t addr, uint16_t in);
 static int wrw(core_t *c, uint32_t addr, uint32_t in);
 static void set_hilo(core_t *c, uint64_t val);
+static int except(core_t *c, uint8_t exc_code);
 
 static int add_overflows(uint32_t a, uint32_t b);
 static int sub_overflows(uint32_t a, uint32_t b);
@@ -43,8 +45,7 @@ void core_reset(core_t *c)
 {
     memset(c->r, 0, sizeof(c->r));
     c->hi = c->lo = c->pc = 0;
-    memset(c->cp0_r, 0, sizeof(c->cp0_r));
-    c->cp0_half_step = 0;
+    core_cp0_reset(c, &c->cp0);
 }
 
 void core_destroy(core_t *c)
@@ -79,8 +80,13 @@ int core_step(core_t *c)
     uint32_t ins;
     uint32_t newpc;
     uint8_t b; uint16_t h; uint32_t w;
+    int ret;
 
-    if (rdw(c, c->pc, &ins)) { return EXC_IBE; }
+    ret = core_cp0_step(c, &c->cp0);
+    if (ret) { return ret; }
+
+    ret = rdiw(c, c->pc, &ins);
+    if (ret) { return ret; }
 
 #ifdef DEBUG_TRACE_STEP
     fprintf(stderr, "core_step: fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) from %08x\n",
@@ -102,69 +108,77 @@ int core_step(core_t *c)
             c->r[RD(ins)] = SRA(c->r[RT(ins)], SA(ins));
             break;
         case FUNCT_SLLV:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = c->r[RT(ins)] << (c->r[RS(ins)] & 0x1F);
             break;
         case FUNCT_SRLV:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = c->r[RT(ins)] >> (c->r[RS(ins)] & 0x1F);
             break;
         case FUNCT_SRAV:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = SRA(c->r[RT(ins)], c->r[RS(ins)] & 0x1F);
             break;
         case FUNCT_JR:
-            if ((RT(ins) != 0) || (RD(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
+            if ((RT(ins) != 0) || (RD(ins) != 0) || (SA(ins) != 0)) {
+                return except(c, EXC_RI);
+            }
             newpc = c->r[RS(ins)];
             break;
         case FUNCT_JALR:
-            if ((RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
+            if ((RT(ins) != 0) || (SA(ins) != 0)) { return except(c, EXC_RI); }
             c->r[RD(ins)] = c->pc + 4;
             newpc = c->r[RS(ins)];
             break;
         case FUNCT_SYSCALL:
-            return EXC_SYS;
+            return except(c, EXC_SYS);
             break;
         case FUNCT_ADD:
-            if (add_overflows(c->r[RS(ins)], c->r[RT(ins)])) { return EXC_OV; }
+            if (add_overflows(c->r[RS(ins)], c->r[RT(ins)])) {
+                return except(c, EXC_OV);
+            }
             /* Fall through. */
         case FUNCT_ADDU:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = c->r[RS(ins)] + c->r[RT(ins)];
             break;
         case FUNCT_SUB:
-            if (sub_overflows(c->r[RS(ins)], c->r[RT(ins)])) { return EXC_OV; }
+            if (sub_overflows(c->r[RS(ins)], c->r[RT(ins)])) {
+                return except(c, EXC_OV);
+            }
             /* Fall through. */
         case FUNCT_SUBU:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = c->r[RS(ins)] - c->r[RT(ins)];
             break;
         case FUNCT_AND:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = c->r[RS(ins)] & c->r[RT(ins)];
             break;
         case FUNCT_OR:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = c->r[RS(ins)] | c->r[RT(ins)];
             break;
         case FUNCT_XOR:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = c->r[RS(ins)] ^ c->r[RT(ins)];
             break;
         case FUNCT_NOR:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = ~(c->r[RS(ins)] | c->r[RT(ins)]);
             break;
         case FUNCT_SLT:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = (((int32_t)c->r[RS(ins)]) < ((int32_t)c->r[RT(ins)])) ? 1 : 0;
             break;
         case FUNCT_SLTU:
-            if (SA(ins) != 0) { return EXC_RI; }
+            if (SA(ins) != 0) { return except(c, EXC_RI); }
             c->r[RD(ins)] = (c->r[RS(ins)] < c->r[RT(ins)]) ? 1 : 0;
             break;
         case FUNCT_MULT:
-            if ((RD(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
+            if ((RD(ins) != 0) || (SA(ins) != 0)) {
+                return except(c, EXC_RI);
+            }
             {
                 int64_t s = (int64_t)((int32_t)c->r[RS(ins)]);
                 int64_t t = (int64_t)((int32_t)c->r[RT(ins)]);
@@ -172,27 +186,39 @@ int core_step(core_t *c)
             }
             break;
         case FUNCT_MFHI:
-            if ((RS(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
+            if ((RS(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) {
+                return except(c, EXC_RI);
+            }
             c->r[RD(ins)] = c->hi;
             break;
         case FUNCT_MFLO:
-            if ((RS(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
+            if ((RS(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) {
+                return except(c, EXC_RI);
+            }
             c->r[RD(ins)] = c->lo;
             break;
         case FUNCT_MTHI:
-            if ((RD(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
+            if ((RD(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) {
+                return except(c, EXC_RI);
+            }
             c->hi = c->r[RS(ins)];
             break;
         case FUNCT_MTLO:
-            if ((RD(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
+            if ((RD(ins) != 0) || (RT(ins) != 0) || (SA(ins) != 0)) {
+                return except(c, EXC_RI);
+            }
             c->lo = c->r[RS(ins)];
             break;
         case FUNCT_MULTU:
-            if ((RD(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
+            if ((RD(ins) != 0) || (SA(ins) != 0)) {
+                return except(c, EXC_RI);
+            }
             set_hilo(c, (uint64_t)c->r[RS(ins)] * (uint64_t)c->r[RT(ins)]);
             break;
         case FUNCT_DIV:
-            if ((RD(ins) != 0) || (SA(ins) != 0)) { return EXC_RI; }
+            if ((RD(ins) != 0) || (SA(ins) != 0)) {
+                return except(c, EXC_RI);
+            }
             if (c->r[RT(ins)] != 0) {
                 c->lo = (uint32_t)(((int32_t)c->r[RS(ins)]) / ((int32_t)c->r[RT(ins)]));
                 c->hi = (uint32_t)(((int32_t)c->r[RS(ins)]) % ((int32_t)c->r[RT(ins)]));
@@ -212,7 +238,7 @@ int core_step(core_t *c)
             }
         default:
             fprintf(stderr, "core_step: unimplemented SPECIAL function %03o\n", FUNCT(ins));
-            return EXC_RI;
+            return except(c, EXC_RI);
         }
         break;
     case OP_REGIMM:
@@ -235,7 +261,7 @@ int core_step(core_t *c)
             break;
         default:
             fprintf(stderr, "core_step: unimplemented REGIMM rt %03o\n", RT(ins));
-            return EXC_RI;
+            return except(c, EXC_RI);
         }
         break;
     case OP_JAL:
@@ -255,19 +281,21 @@ int core_step(core_t *c)
         }
         break;
     case OP_BLEZ:
-        if (RT(ins) != 0) { return EXC_RI; }
+        if (RT(ins) != 0) { return except(c, EXC_RI); }
         if ((int32_t)c->r[RS(ins)] <= 0) {
             newpc = BRANCH_TARGET(c, ins);
         }
         break;
     case OP_BGTZ:
-        if (RT(ins) != 0) { return EXC_RI; }
+        if (RT(ins) != 0) { return except(c, EXC_RI); }
         if ((int32_t)c->r[RS(ins)] > 0) {
             newpc = BRANCH_TARGET(c, ins);
         }
         break;
     case OP_ADDI:
-        if (add_overflows(c->r[RS(ins)], SIMMED(ins))) { return EXC_OV; }
+        if (add_overflows(c->r[RS(ins)], SIMMED(ins))) {
+            return except(c, EXC_OV);
+        }
         /* Fall through. */
     case OP_ADDIU:
         c->r[RT(ins)] = c->r[RS(ins)] + SIMMED(ins);
@@ -292,48 +320,54 @@ int core_step(core_t *c)
         c->r[RT(ins)] = IMMED(ins) << 16;
         break;
     case OP_LB:
-        /* XXX: Alignment errors should generate EXC_ADEL/EXC_ADES, not
-         * EXC_DBE. */
-        if (rdb(c, ADDR(c, ins), &b)) { return EXC_DBE; }
+        ret = rdb(c, ADDR(c, ins), &b);
+        if (ret) return ret;
         c->r[RT(ins)] = SE8(b);
         break;
     case OP_LH:
-        if (rdh(c, ADDR(c, ins), &h)) { return EXC_DBE; }
+        ret = rdh(c, ADDR(c, ins), &h);
+        if (ret) { return ret; }
         c->r[RT(ins)] = SE16(h);
         break;
     case OP_LW:
-        if (rdw(c, ADDR(c, ins), &w)) { return EXC_DBE; }
+        ret = rdw(c, ADDR(c, ins), &w);
+        if (ret) return ret;
         c->r[RT(ins)] = w;
         break;
      case OP_LBU:
-        if (rdb(c, ADDR(c, ins), &b)) { return EXC_DBE; }
+        ret = rdb(c, ADDR(c, ins), &b);
+        if (ret) return ret;
         c->r[RT(ins)] = (uint32_t)b;
         break;
     case OP_LHU:
-        if (rdh(c, ADDR(c, ins), &h)) { return EXC_DBE; }
+        ret = rdh(c, ADDR(c, ins), &h);
+        if (ret) return ret;
         c->r[RT(ins)] = (uint32_t)h;
         break;
     case OP_SB:
         b = (uint8_t)c->r[RT(ins)];
-        if (wrb(c, ADDR(c, ins), b)) { return EXC_DBE; }
+        ret = wrb(c, ADDR(c, ins), b);
+        if (ret) return ret;
         break;
     case OP_SH:
         h = (uint16_t)c->r[RT(ins)];
-        if (wrh(c, ADDR(c, ins), h)) { return EXC_DBE; }
+        ret = wrh(c, ADDR(c, ins), h);
+        if (ret) return ret;
         break;
     case OP_SW:
         w = c->r[RT(ins)];
-        if (wrw(c, ADDR(c, ins), w)) { return EXC_DBE; }
+        ret = wrw(c, ADDR(c, ins), w);
+        if (ret) return ret;
         break;
     default:
         fprintf(stderr, "core_step: unhandled OP %03o\n", OP(ins));
-        return EXC_RI;
+        return except(c, EXC_RI);
     }
 
     c->pc = newpc;
     c->r[0] = 0; /* ...damnit! */
 
-    return EXC_NONE;
+    return OK;
 }
 
 void core_dump_regs(core_t *c, FILE *out)
@@ -361,7 +395,7 @@ static int rdb(core_t *c, uint32_t addr, uint8_t *out)
 
     ret = mem_read(c->mem, w_addr, &w);
     *out = (uint8_t)(w >> (8 * (addr - w_addr)));
-    return ret;
+    return ret ? EXC_DBE : 0;
 }
 
 static int rdh(core_t *c, uint32_t addr, uint16_t *out)
@@ -376,14 +410,25 @@ static int rdh(core_t *c, uint32_t addr, uint16_t *out)
 
     ret = mem_read(c->mem, w_addr, &w);
     *out = (uint16_t)(w >> (8 * (addr - w_addr)));
-    return ret;
+    return ret ? EXC_DBE : 0;
 }
 
 static int rdw(core_t *c, uint32_t addr, uint32_t *out)
 {
-    if (addr & 0x3) { return EXC_ADEL; }
+    int ret;
 
-    return mem_read(c->mem, addr, out);
+    if (addr & 0x3) { return EXC_ADEL; }
+    ret = mem_read(c->mem, addr, out);
+    return ret ? EXC_DBE : 0;
+}
+
+static int rdiw(core_t *c, uint32_t addr, uint32_t *out)
+{
+    int ret;
+
+    if (addr & 0x3) { return EXC_ADEL; }
+    ret = mem_read(c->mem, addr, out);
+    return ret ? EXC_IBE : 0;
 }
 
 static int wrb(core_t *c, uint32_t addr, uint8_t in)
@@ -425,6 +470,11 @@ static void set_hilo(core_t *c, uint64_t val)
 {
     c->lo = (uint32_t)val;
     c->hi = (uint32_t)(val >> 32);
+}
+
+static int except(core_t *c, uint8_t exc_code)
+{
+    return core_cp0_except(c, &c->cp0, exc_code);
 }
 
 static int add_overflows(uint32_t a, uint32_t b)
