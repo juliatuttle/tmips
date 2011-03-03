@@ -34,6 +34,8 @@ enum {
     OP_XORI    = 016,
     OP_LUI     = 017,
 
+    OP_COP0    = 020,
+
     OP_LB      = 040,
     OP_LH      = 041,
 
@@ -88,6 +90,12 @@ enum {
 
     REGIMM_BLTZAL = 020,
     REGIMM_BGEZAL = 021,
+};
+
+enum {
+    COP_MF = 000,
+
+    COP_MT = 004,
 };
 
 #endif

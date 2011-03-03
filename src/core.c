@@ -359,6 +359,21 @@ int core_step(core_t *c)
         ret = wrw(c, ADDR(c, ins), w);
         if (ret) return ret;
         break;
+    case OP_COP0:
+        switch (RS(ins)) {
+        case COP_MF:
+            ret = core_cp0_move_from(c, &c->cp0, RD(ins), &c->r[RT(ins)]);
+            if (ret) return ret;
+            break;
+        case COP_MT:
+            ret = core_cp0_move_to(c, &c->cp0, RD(ins), c->r[RT(ins)]);
+            if (ret) return ret;
+            break;
+        default:
+            fprintf(stderr, "core_step: unimplemented COP0 rs %03o\n", RS(ins));
+            return except(c, EXC_RI);
+        }
+        break;
     default:
         fprintf(stderr, "core_step: unhandled OP %03o\n", OP(ins));
         return except(c, EXC_RI);

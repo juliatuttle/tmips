@@ -42,3 +42,17 @@ int core_cp0_except(core_t *c, core_cp0_t *cp0, uint8_t exc_code)
 
     return EXCEPTED;
 }
+
+int core_cp0_move_from(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t *val_out)
+{
+    *val_out = (reg < CP0_NUM_REGS) ? cp0->r[reg] : 0;
+    return 0;
+}
+
+int core_cp0_move_to(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t val)
+{
+    if (reg < CP0_NUM_REGS) {
+        cp0->r[reg] = val;
+    }
+    return 0;
+}

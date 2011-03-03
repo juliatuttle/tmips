@@ -49,5 +49,7 @@ struct core_cp0 {
 void core_cp0_reset(core_t *c, core_cp0_t *cp0);
 int core_cp0_step(core_t *c, core_cp0_t *cp0);
 int core_cp0_except(core_t *c, core_cp0_t *cp0, uint8_t exc_code);
+int core_cp0_move_from(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t *val_out);
+int core_cp0_move_to(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t val);
 
 #endif
