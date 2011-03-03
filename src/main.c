@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    core_reset(c.core);
     core_set_pc(c.core, c.pc);
 
     do {
