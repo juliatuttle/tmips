@@ -117,7 +117,7 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
 static void version(void)
 {
     printf(
-        "tmips 0.1.0 \"I Feel Fantastic\"\n"
+        "tmips 0.2.0 \"The Future Soon\"\n"
         "Copyright (C) 2011 Thomas Tuttle\n"
         "This is free software, and comes with no warranty.\n"
         "See COPYING for details.\n");
