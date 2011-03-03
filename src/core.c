@@ -52,6 +52,11 @@ void core_destroy(core_t *c)
     free(c);
 }
 
+uint32_t core_get_pc(core_t *c)
+{
+    return c->pc;
+}
+
 void core_set_pc(core_t *c, uint32_t pc)
 {
     c->pc = pc;
