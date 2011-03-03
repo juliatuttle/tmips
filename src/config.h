@@ -16,6 +16,7 @@ struct config {
     uint32_t pc;
     FILE *dump_file;
     filter_t *filter;
+    int step;
 };
 
 int config_parse_args(config_t *cfg, int argc, char *argv[]);

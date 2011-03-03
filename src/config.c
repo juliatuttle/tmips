@@ -111,6 +111,9 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
                 return 1;
             }
             i += 2;
+        } else if (!strcmp(argv[i], "--step") || !strcmp(argv[i], "-s")) {
+            cfg->step = 1;
+            i += 1;
         } else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
             usage(argv[0]);
             return 1;
@@ -157,6 +160,9 @@ static void usage(char *progn)
         "    --filter|-f <filter>\n"
         "        Sets a filter to allow only instructions required for a certain lab.\n"
         "        Valid values of filter are: lab1, lab2, lab3\n"
+        "\n"
+        "    --step|-s\n"
+        "        Pause and dump registers after each instruction executes.\n"
         "\n"
         "    --help|-h\n"
         "        Shows this help screen.\n"

@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
     c.pc = 0;
     c.dump_file = stdout;
     c.filter = NULL;
+    c.step = 0;
 
     ret = config_parse_args(&c, argc, argv);
     if (ret) {
@@ -32,6 +33,14 @@ int main(int argc, char *argv[])
     core_set_filter(c.core, c.filter);
 
     while (1) {
+        if (c.step) {
+            core_dump_regs(c.core, stderr);
+            {
+                int ch;
+                do { ch = getchar(); } while ((ch != '\n') && (ch != EOF));
+                if (ch == EOF) { c.step = 0; }
+            }
+        }
         ret = core_step(c.core);
         if (ret) { break; }
     }
