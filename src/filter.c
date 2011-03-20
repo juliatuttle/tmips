@@ -120,11 +120,18 @@ filter_t *filter_find(char *name)
 
 int filter_ins_allowed(filter_t *filter, uint32_t ins)
 {
-    if (OP(ins) == OP_SPECIAL) {
+    switch (OP(ins)) {
+    case OP_SPECIAL:
         return check(filter, FUNCT_OFFSET + FUNCT(ins));
-    } else if (OP(ins) == OP_REGIMM) {
+    case OP_REGIMM:
         return check(filter, REGIMM_OFFSET + RT(ins));
-    } else {
+    case OP_COP0:
+        if (RS(ins) & 020) {
+            return check(filter, CP0_FUNCT_OFFSET + FUNCT(ins));
+        } else {
+            return check(filter, COP0_OFFSET + RS(ins));
+        }
+    default:
         return check(filter, OP(ins));
     }
 }
