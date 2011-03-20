@@ -22,6 +22,8 @@ struct core {
     uint32_t pc;
 
     core_cp0_t cp0;
+
+    int exc_count;
 };
 
 static int __core_step(core_t *c);
@@ -54,6 +56,7 @@ void core_reset(core_t *c)
     memset(c->r, 0, sizeof(c->r));
     c->hi = c->lo = c->pc = 0;
     core_cp0_reset(c, &c->cp0);
+    c->exc_count = 0;
 }
 
 void core_destroy(core_t *c)
@@ -88,12 +91,22 @@ void core_set_filter(core_t *c, filter_t *f)
 #define BRANCH_TARGET(c, ins) ((c)->pc + (SIMMED(ins) << 2) + 4)
 #define LINK(c) (c->r[31] = c->pc + 4)
 
+#define MAX_EXCS 10
+
 int core_step(core_t *c)
 {
     int ret;
 
     ret = __core_step(c);
-    if (ret == EXCEPTED) { ret = 0; }
+    if (ret == EXCEPTED) {
+        ret = 0;
+        c->exc_count++;
+        if (c->exc_count >= MAX_EXCS) {
+            ret = ERR_EXC_FLOOD;
+        }
+    } else {
+        c->exc_count = 0;
+    }
     return ret;
 }
 

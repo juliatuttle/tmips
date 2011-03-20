@@ -4,6 +4,7 @@
 enum {
     ERR_TESTDONE = 1,
     ERR_EXC,
+    ERR_EXC_FLOOD,
     NUM_ERRS
 };
 
