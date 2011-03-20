@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include "debug.h"
 #include "ram.h"
 #include "util.h"
 
@@ -18,6 +19,8 @@ struct ram_dev {
 mem_dev_t *ram_create(uint32_t size)
 {
     ram_dev_t *d;
+
+    debug_printf(RAM, INFO, "Creating RAM (size=%08x)\n", size);
 
     d = xmalloc(sizeof(*d));
     d->dev.size = size;

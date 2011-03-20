@@ -5,6 +5,7 @@
 #include "core.h"
 #include "core_priv.h"
 #include "core_cp0.h"
+#include "debug.h"
 #include "err.h"
 #include "exc.h"
 #include "filter.h"
@@ -125,16 +126,14 @@ int __core_step(core_t *c)
 
     if (c->filter) {
         if (!filter_ins_allowed(c->filter, ins)) {
-            fprintf(stderr, "core_step: Unsupported instruction: %08x (PC=%08x)\n",
+            debug_printf(CORE, DETAIL, "Unsupported instruction: %08x (PC=%08x)\n",
                     ins, c->pc);
             return except(c, EXC_RI);
         }
     }
 
-#ifdef DEBUG_TRACE_STEP
-    fprintf(stderr, "core_step: fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) from %08x (in %s mode)\n",
+    debug_printf(CORE, TRACE, "Fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) from %08x (in %s mode)\n",
         ins, OP(ins), RS(ins), RT(ins), RD(ins), SA(ins), FUNCT(ins), IMMED(ins), TARGET(ins), c->pc, user_mode(c) ? "user" : "kernel");
-#endif
 
     newpc = c->pc + 4;
 
@@ -282,7 +281,7 @@ int __core_step(core_t *c)
                 c->hi = 0xFEEDFACE;
             }
         default:
-            fprintf(stderr, "core_step: unimplemented SPECIAL function %03o\n", FUNCT(ins));
+            debug_printf(CORE, DETAIL, "unimplemented SPECIAL function %03o\n", FUNCT(ins));
             return except(c, EXC_RI);
         }
         break;
@@ -305,7 +304,7 @@ int __core_step(core_t *c)
             }
             break;
         default:
-            fprintf(stderr, "core_step: unimplemented REGIMM rt %03o\n", RT(ins));
+            debug_printf(CORE, DETAIL, "unimplemented REGIMM rt %03o\n", RT(ins));
             return except(c, EXC_RI);
         }
         break;
@@ -427,18 +426,18 @@ int __core_step(core_t *c)
                 if (ret) return ret;
                 break;
             default:
-                fprintf(stderr, "core_step: unimplemented CP0 funct %03o\n",
+                debug_printf(CORE, DETAIL, "core_step: unimplemented CP0 funct %03o\n",
                         FUNCT(ins));
                 return except(c, EXC_RI);
             }
             break;
         default:
-            fprintf(stderr, "core_step: unimplemented COP0 rs %03o\n", RS(ins));
+            debug_printf(CORE, DETAIL, "core_step: unimplemented COP0 rs %03o\n", RS(ins));
             return except(c, EXC_RI);
         }
         break;
     default:
-        fprintf(stderr, "core_step: unimplemented OP %03o\n", OP(ins));
+        debug_printf(CORE, DETAIL, "core_step: unimplemented OP %03o\n", OP(ins));
         return except(c, EXC_RI);
     }
 
@@ -569,8 +568,12 @@ static int wrw(core_t *c, uint32_t addr, uint32_t in)
 
 static int vm_check(core_t *c, uint32_t addr, int write)
 {
-    write = write;
-    return !(user_mode(c) && (addr & 0x80000000));
+    if (user_mode(c) && (addr & 0x80000000)) {
+        debug_printf(CORE, DETAIL, "Attempt to access kernel memory at %08x in user mode.\n", addr);
+        return 0;
+    }
+
+    return 1;
 }
 
 static int user_mode(core_t *c)
@@ -588,7 +591,7 @@ static int except(core_t *c, uint8_t exc_code)
 {
     if (c->filter) {
         if (!filter_exc_allowed(c->filter, exc_code)) {
-            fprintf(stderr, "except: Unsupported exception: %s\n", exc_text[exc_code]);
+            debug_printf(CORE, DETAIL, "Unsupported exception: %s\n", exc_text[exc_code]);
             return ERR_EXC;
         }
     }

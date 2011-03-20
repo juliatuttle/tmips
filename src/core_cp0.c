@@ -5,6 +5,7 @@
 #include "core.h"
 #include "core_cp0.h"
 #include "core_priv.h"
+#include "debug.h"
 #include "exc.h"
 
 #define EXC_VECTOR 0x80000180
@@ -29,9 +30,7 @@ int core_cp0_except(core_t *c, core_cp0_t *cp0, uint8_t exc_code)
     cp0->r[CP0_EPC] = epc;
     cp0->r[CP0_CAUSE] = exc_code << 2;
     cp0->r[CP0_STATUS] &= ~STATUS_UM;
-#ifdef DEBUG_TRACE_EXC
-    fprintf(stderr, "exception: epc=%08x exc_code=%d (%s)\n", epc, exc_code, exc_text[exc_code]);
-#endif
+    debug_printf(CP0, DETAIL, "Took exception: epc=%08x exc_code=%d (%s)\n", epc, exc_code, exc_text[exc_code]);
     core_set_pc(c, EXC_VECTOR);
 
     return EXCEPTED;
@@ -43,9 +42,7 @@ int core_cp0_eret(core_t *c, core_cp0_t *cp0, uint32_t *new_pc)
 
     cp0->r[CP0_STATUS] |= STATUS_UM;
     *new_pc = cp0->r[CP0_EPC];
-#ifdef DEBUG_TRACE_EXC
-    fprintf(stderr, "eret returning to epc=%08x\n", cp0->r[CP0_EPC]);
-#endif
+    debug_printf(CP0, DETAIL, "ERET returning to epc=%08x\n", cp0->r[CP0_EPC]);
 
     return 0;
 }

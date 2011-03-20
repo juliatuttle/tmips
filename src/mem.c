@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "debug.h"
 #include "mem.h"
 #include "util.h"
 
@@ -52,12 +53,18 @@ mem_region_t *mem_map(mem_t *m, uint32_t base, mem_dev_t *d)
     r->next = m->regions;
     m->regions = r;
 
+    debug_printf(MEM, INFO, "Memory mapped at %08x-%08x (%08x)\n",
+        base, base + d->size, d->size);
+
     return r;
 }
 
 void mem_unmap(mem_t *m, mem_region_t *r)
 {
     assert(r->mem == m);
+
+    debug_printf(MEM, INFO, "Memory unmapped at %08x-%08x (%08x)\n",
+        r->base, r->base + r->dev->size, r->dev->size);
 
     if (r->prev) {
         r->prev->next = r->next;
@@ -79,11 +86,13 @@ int mem_read(mem_t *m, uint32_t addr, uint32_t *val_out)
 
     r = find_region(m, addr);
     if (!r) {
+        debug_printf(MEM, DETAIL, "Attempt to read unmapped memory at %08x\n", addr);
         return 1;
     } else if (r->dev->read) {
+        debug_printf(MEM, TRACE, "Reading %08x\n", addr);
         return (r->dev->read)(r->dev, addr - r->base, val_out);
     } else {
-        /* Region is write-only. */
+        debug_printf(MEM, DETAIL, "Attempt to read write-only memory (!) at %08x\n", addr);
         return 1;
     }
 }
@@ -97,12 +106,14 @@ int mem_write(mem_t *m, uint32_t addr, uint32_t val, uint8_t we)
 
     r = find_region(m, addr);
     if (!r) {
+        debug_printf(MEM, DETAIL, "Attempt to write to unmapped memory at %08x (val=%08x, we=%01x)\n", addr, val, we);
         return 1;
     } else if (r->dev->write) {
+        debug_printf(MEM, TRACE, "Writing %08x (val=%08x, we=%01x)\n", addr, val, we);
         return (r->dev->write)(r->dev, addr - r->base, val, we);
     } else {
-        /* Region discards writes. */
-        return 0;
+        debug_printf(MEM, DETAIL, "Attempt to write to read-only memory at %08x (val=%08x, we=%01x)\n", addr, val, we);
+        return 1;
     }
 }
 

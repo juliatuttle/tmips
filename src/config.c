@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "core.h"
+#include "debug.h"
 #include "filter.h"
 #include "mem.h"
 #include "mem_dev.h"
@@ -26,9 +27,8 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
     int saw_dump_file = 0;
 
     if (argc < 2) {
-        fprintf(stderr,
-            "Warning: Processors tend to be unhappy with nothing on their bus.\n"
-            "(Run \"%s --help\" for help.)\n", argv[0]);
+        debug_print(CONFIG, WARNING, "Processors tend to be unhappy with nothing on their bus.\n");
+        debug_printf(CONFIG, WARNING, "(Run \"%s --help\" for more info.)\n", argv[0]);
     }
 
     for (i = 1; i < argc; ) {
@@ -37,17 +37,17 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             char *end;
 
             if (argc - i < 4) {
-                fprintf(stderr, "--region: expected <base> <size> <readmemh-file>\n");
+                debug_print(CONFIG, FATAL, "--region: expected <base> <size> <readmemh-file>\n");
                 return 1;
             }
             base = strtoul(argv[i + 1], &end, 16);
             if (*end != '\0') {
-                fprintf(stderr, "--region: invalid base \"%s\"\n", argv[i + 1]);
+                debug_printf(CONFIG, FATAL, "--region: invalid base \"%s\"\n", argv[i + 1]);
                 return 1;
             }
             size = strtoul(argv[i + 2], &end, 16);
             if (*end != '\0') {
-                fprintf(stderr, "--region: invalid size \"%s\"\n", argv[i + 2]);
+                debug_printf(CONFIG, FATAL, "--region: invalid size \"%s\"\n", argv[i + 2]);
                 return 1;
             }
             if (do_region(cfg->mem, base, size, argv[i + 3])) {
@@ -59,28 +59,28 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             char *end;
 
             if (argc - i < 2) {
-                fprintf(stderr, "--pc: expected <initial-pc>\n");
+                debug_print(CONFIG, FATAL, "--pc: expected <initial-pc>\n");
                 return 1;
             }
             pc = strtoul(argv[i + 1], &end, 16);
             if (*end != '\0') {
-                fprintf(stderr, "--pc: invalid pc \"%s\"\n", argv[i + 1]);
+                debug_printf(CONFIG, FATAL, "--pc: invalid pc \"%s\"\n", argv[i + 1]);
                 return 1;
             }
             cfg->pc = pc;
             i += 2;
         } else if (!strcmp(argv[i], "--dump") || !strcmp(argv[i], "-d")) {
             if (argc - i < 1) {
-                fprintf(stderr, "--dump: expected <dump-file>\n");
+                debug_print(CONFIG, FATAL, "--dump: expected <dump-file>\n");
                 return 1;
             }
             if (saw_dump_file) {
-                fprintf(stderr, "--dump: may not be specified multiple times\n");
+                debug_print(CONFIG, FATAL, "--dump: may not be specified multiple times\n");
                 return 1;
             }
             cfg->dump_file = fopen(argv[i + 1], "w");
             if (!cfg->dump_file) {
-                fprintf(stderr, "%s: %s\n", argv[i + 1], strerror(errno));
+                debug_printf(CONFIG, FATAL, "%s: %s\n", argv[i + 1], strerror(errno));
                 return 1;
             }
             saw_dump_file = 1;
@@ -90,24 +90,24 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             char *end;
 
             if (argc - i < 2) {
-                fprintf(stderr, "--console: expected <addr>\n");
+                debug_print(CONFIG, FATAL, "--console: expected <addr>\n");
                 return 1;
             }
             addr = strtoul(argv[i + 1], &end, 16);
             if (*end != '\0') {
-                fprintf(stderr, "--console: invalid addr \"%s\"\n", argv[i + 1]);
+                debug_printf(CONFIG, FATAL, "--console: invalid addr \"%s\"\n", argv[i + 1]);
                 return 1;
             }
             mem_map(cfg->mem, addr, serial_create(0, 1));
             i += 2;
         } else if (!strcmp(argv[i], "--filter") || !strcmp(argv[i], "-f")) {
             if (argc - i < 2) {
-                fprintf(stderr, "--filter: expected <filter>\n");
+                debug_print(CONFIG, FATAL, "--filter: expected <filter>\n");
                 return 1;
             }
             cfg->filter = filter_find(argv[i + 1]);
             if (!cfg->filter) {
-                fprintf(stderr, "--filter: unknown filter \"%s\"\n", argv[i + 1]);
+                debug_printf(CONFIG, FATAL, "--filter: unknown filter \"%s\"\n", argv[i + 1]);
                 return 1;
             }
             i += 2;
@@ -121,7 +121,7 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             version();
             return 1;
         } else {
-            fprintf(stderr, "Invalid argument \"%s\"\n", argv[i]);
+            debug_printf(CONFIG, FATAL, "Invalid argument \"%s\"\n", argv[i]);
             return 1;
         }
     }

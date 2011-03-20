@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "debug.h"
 #include "mem_dev.h"
 #include "util.h"
 
@@ -77,9 +78,9 @@ static int serial_write(mem_dev_t *dev, uint32_t offset, uint32_t val, uint8_t w
 
     ret = write(ser->outfd, &c, 1);
     if (ret == 0) {
-        fprintf(stderr, "serial_write: short write\n");
+        debug_print(SERIAL, ERROR, "serial_write: short write\n");
     } else if (ret < 0) {
-        fprintf(stderr, "serial_write: %s\n", strerror(errno));
+        debug_printf(SERIAL, ERROR, "serial_write: %s\n", strerror(errno));
     }
 
     return 0;

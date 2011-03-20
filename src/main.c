@@ -7,6 +7,7 @@
 
 #include "config.h"
 #include "core.h"
+#include "debug.h"
 #include "err.h"
 #include "exc.h"
 #include "mem.h"
@@ -17,6 +18,9 @@ int main(int argc, char *argv[])
 {
     config_t c;
     int ret;
+
+    debug_init();
+    debug_set_level(DEBUG_LEVEL_TRACE);
 
     c.mem = mem_create();
     c.core = core_create(c.mem);
@@ -46,7 +50,7 @@ int main(int argc, char *argv[])
         ret = core_step(c.core);
     } while (!ret);
 
-    fprintf(c.dump_file, "Halted: %s.\n", err_text[ret]);
+    debug_printf(MAIN, INFO, "Halted: %s.\n", err_text[ret]);
     core_dump_regs(c.core, c.dump_file);
 
     return 0;
