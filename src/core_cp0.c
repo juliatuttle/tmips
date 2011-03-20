@@ -7,6 +7,8 @@
 #include "core_priv.h"
 #include "exc.h"
 
+#define EXC_VECTOR 0x80000180
+
 void core_cp0_reset(core_t *c, core_cp0_t *cp0)
 {
     memset(cp0->r, 0, sizeof(cp0->r));
@@ -14,33 +16,39 @@ void core_cp0_reset(core_t *c, core_cp0_t *cp0)
 
 int core_cp0_step(core_t *c, core_cp0_t *cp0)
 {
-    return OK;
+    return 0;
 }
 
 int core_cp0_except(core_t *c, core_cp0_t *cp0, uint8_t exc_code)
 {
-    uint32_t vector;
-
+    uint32_t epc;
     assert(!(exc_code & ~0x1F));
 
-    fprintf(stderr, "core_cp0_except: %s\n", exc_text[exc_code]);
-
-    /* XXX:
-       Does not handle Reset, Cache Error, Soft Reset, NMI.
-       Does not handle TLBrefill and XTLBrefill.
-       Does not handle EXL = 1.
-       Does not handle BEV = 1.
-    */
-
-    cp0->r[CP0_EPC] = core_get_pc(c);
+    epc = core_get_pc(c);
+    if (exc_code == EXC_SYS) { epc += 4; }
+    cp0->r[CP0_EPC] = epc;
     cp0->r[CP0_CAUSE] = exc_code << 2;
-
-    vector = 0x180;
-
-    cp0->r[CP0_STATUS] |= STATUS_EXL;
-    core_set_pc(c, 0x80000000 + vector);
+    cp0->r[CP0_STATUS] &= ~STATUS_UM;
+    fprintf(stderr, "core_cp0_except: exc=%s pc=%08x\n", exc_text[exc_code], cp0->r[CP0_EPC]);
+    core_set_pc(c, EXC_VECTOR);
 
     return EXCEPTED;
+}
+
+int core_cp0_eret(core_t *c, core_cp0_t *cp0, uint32_t *new_pc)
+{
+    assert(new_pc);
+
+    cp0->r[CP0_STATUS] |= STATUS_UM;
+    *new_pc = cp0->r[CP0_EPC];
+    fprintf(stderr, "core_cp0_eret: returning to %08x\n", cp0->r[CP0_EPC]);
+
+    return 0;
+}
+
+int core_cp0_user_mode(core_t *c, core_cp0_t *cp0)
+{
+    return !!(cp0->r[CP0_STATUS] & STATUS_UM);
 }
 
 int core_cp0_move_from(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t *val_out)

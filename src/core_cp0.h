@@ -36,7 +36,8 @@ enum {
 };
 
 enum {
-    STATUS_EXL = 0x00000002
+    STATUS_UM  = 1 << 4,
+    STATUS_EXL = 1 << 1,
 };
 
 typedef struct core_cp0 core_cp0_t;
@@ -49,6 +50,8 @@ struct core_cp0 {
 void core_cp0_reset(core_t *c, core_cp0_t *cp0);
 int core_cp0_step(core_t *c, core_cp0_t *cp0);
 int core_cp0_except(core_t *c, core_cp0_t *cp0, uint8_t exc_code);
+int core_cp0_eret(core_t *c, core_cp0_t *cp0, uint32_t *newpc);
+int core_cp0_user_mode(core_t *c, core_cp0_t *cp0);
 int core_cp0_move_from(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t *val_out);
 int core_cp0_move_to(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t val);
 

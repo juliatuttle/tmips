@@ -5,6 +5,7 @@
 #include "core.h"
 #include "core_priv.h"
 #include "core_cp0.h"
+#include "err.h"
 #include "exc.h"
 #include "opcode.h"
 #include "util.h"
@@ -21,6 +22,7 @@ struct core {
     core_cp0_t cp0;
 };
 
+static int __core_step(core_t *c);
 static int rdb(core_t *c, uint32_t addr, uint8_t *out);
 static int rdh(core_t *c, uint32_t addr, uint16_t *out);
 static int rdw(core_t *c, uint32_t addr, uint32_t *out);
@@ -28,8 +30,11 @@ static int rdiw(core_t *c, uint32_t addr, uint32_t *out);
 static int wrb(core_t *c, uint32_t addr, uint8_t in);
 static int wrh(core_t *c, uint32_t addr, uint16_t in);
 static int wrw(core_t *c, uint32_t addr, uint32_t in);
+static int vm_check(core_t *c, uint32_t addr, int write);
+static int user_mode(core_t *c);
 static void set_hilo(core_t *c, uint64_t val);
 static int except(core_t *c, uint8_t exc_code);
+static int except_vm(core_t *c, uint8_t exc_code, uint32_t badvaddr);
 
 static int add_overflows(uint32_t a, uint32_t b);
 static int sub_overflows(uint32_t a, uint32_t b);
@@ -77,6 +82,15 @@ void core_set_pc(core_t *c, uint32_t pc)
 
 int core_step(core_t *c)
 {
+    int ret;
+
+    ret = __core_step(c);
+    if (ret == EXCEPTED) { ret = 0; }
+    return ret;
+}
+
+int __core_step(core_t *c)
+{
     uint32_t ins;
     uint32_t newpc;
     uint8_t b; uint16_t h; uint32_t w;
@@ -89,8 +103,8 @@ int core_step(core_t *c)
     if (ret) { return ret; }
 
 #ifdef DEBUG_TRACE_STEP
-    fprintf(stderr, "core_step: fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) from %08x\n",
-        ins, OP(ins), RS(ins), RT(ins), RD(ins), SA(ins), FUNCT(ins), IMMED(ins), TARGET(ins), c->pc);
+    fprintf(stderr, "core_step: fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) from %08x (in %s mode)\n",
+        ins, OP(ins), RS(ins), RT(ins), RD(ins), SA(ins), FUNCT(ins), IMMED(ins), TARGET(ins), c->pc, user_mode(c) ? "user" : "kernel");
 #endif
 
     newpc = c->pc + 4;
@@ -132,7 +146,9 @@ int core_step(core_t *c)
             break;
         case FUNCT_SYSCALL:
             return except(c, EXC_SYS);
-            break;
+        case FUNCT_TESTDONE:
+            if (user_mode(c)) { return except(c, EXC_RI); }
+            return ERR_TESTDONE;
         case FUNCT_ADD:
             if (add_overflows(c->r[RS(ins)], c->r[RT(ins)])) {
                 return except(c, EXC_OV);
@@ -362,12 +378,30 @@ int core_step(core_t *c)
     case OP_COP0:
         switch (RS(ins)) {
         case COP_MF:
+            if (user_mode(c)) { return except(c, EXC_RI); }
             ret = core_cp0_move_from(c, &c->cp0, RD(ins), &c->r[RT(ins)]);
             if (ret) return ret;
             break;
         case COP_MT:
+            if (user_mode(c)) { return except(c, EXC_RI); }
             ret = core_cp0_move_to(c, &c->cp0, RD(ins), c->r[RT(ins)]);
             if (ret) return ret;
+            break;
+        case 020:
+            if ((RT(ins) != 0) || (RD(ins) != 0) || (SA(ins) != 0)) {
+                return except(c, EXC_RI);
+            }
+            switch (FUNCT(ins)) {
+            case CP0_FUNCT_ERET:
+                if (user_mode(c)) { return except(c, EXC_RI); }
+                ret = core_cp0_eret(c, &c->cp0, &newpc);
+                if (ret) return ret;
+                break;
+            default:
+                fprintf(stderr, "core_step: unimplemented CP0 funct %03o\n",
+                        FUNCT(ins));
+                return except(c, EXC_RI);
+            }
             break;
         default:
             fprintf(stderr, "core_step: unimplemented COP0 rs %03o\n", RS(ins));
@@ -375,14 +409,14 @@ int core_step(core_t *c)
         }
         break;
     default:
-        fprintf(stderr, "core_step: unhandled OP %03o\n", OP(ins));
+        fprintf(stderr, "core_step: unimplemented OP %03o\n", OP(ins));
         return except(c, EXC_RI);
     }
 
     c->pc = newpc;
     c->r[0] = 0; /* ...damnit! */
 
-    return OK;
+    return 0;
 }
 
 void core_dump_regs(core_t *c, FILE *out)
@@ -407,10 +441,12 @@ static int rdb(core_t *c, uint32_t addr, uint8_t *out)
     int ret;
 
     w_addr = addr & ~0x3;
+    if (!vm_check(c, w_addr, 0)) { return except_vm(c, EXC_ADEL, addr); }
 
     ret = mem_read(c->mem, w_addr, &w);
+    if (ret) { return except_vm(c, EXC_DBE, addr); }
     *out = (uint8_t)(w >> (8 * (addr - w_addr)));
-    return ret ? EXC_DBE : 0;
+    return 0;
 }
 
 static int rdh(core_t *c, uint32_t addr, uint16_t *out)
@@ -419,66 +455,96 @@ static int rdh(core_t *c, uint32_t addr, uint16_t *out)
     uint32_t w;
     int ret;
 
-    if (addr & 0x1) { return EXC_ADEL; }
-
+    if (addr & 0x1) { return except_vm(c, EXC_ADEL, addr); }
     w_addr = addr & ~0x3;
+    if (!vm_check(c, w_addr, 0)) { return except_vm(c, EXC_ADEL, addr); }
 
     ret = mem_read(c->mem, w_addr, &w);
+    if (ret) { return except_vm(c, EXC_DBE, addr); }
     *out = (uint16_t)(w >> (8 * (addr - w_addr)));
-    return ret ? EXC_DBE : 0;
+    return 0;
 }
 
 static int rdw(core_t *c, uint32_t addr, uint32_t *out)
 {
     int ret;
 
-    if (addr & 0x3) { return EXC_ADEL; }
+    if (addr & 0x3) { return except_vm(c, EXC_ADEL, addr); }
+    if (!vm_check(c, addr, 0)) { return except_vm(c, EXC_ADEL, addr); }
+
     ret = mem_read(c->mem, addr, out);
-    return ret ? EXC_DBE : 0;
+    if (ret) { return except_vm(c, EXC_DBE, addr); }
+    return 0;
 }
 
 static int rdiw(core_t *c, uint32_t addr, uint32_t *out)
 {
     int ret;
 
-    if (addr & 0x3) { return EXC_ADEL; }
+    if (addr & 0x3) { return except_vm(c, EXC_ADEL, addr); }
+    if (!vm_check(c, addr, 0)) { return except_vm(c, EXC_ADEL, addr); }
+
     ret = mem_read(c->mem, addr, out);
-    return ret ? EXC_IBE : 0;
+    if (ret) { return except_vm(c, EXC_IBE, addr); }
+    return 0;
 }
 
 static int wrb(core_t *c, uint32_t addr, uint8_t in)
 {
     uint32_t w_addr;
     int offset;
+    int ret;
 
     w_addr = addr & ~0x3;
     offset = addr &  0x3;
+    if (!vm_check(c, w_addr, 1)) { return except_vm(c, EXC_ADES, addr); }
 
-    return mem_write(c->mem, w_addr,
-                     (uint32_t)in << (8 * offset),
-                     0x1 << offset);
+    ret = mem_write(c->mem, w_addr,
+                    (uint32_t)in << (8 * offset),
+                    0x1 << offset);
+    if (ret) { return except_vm(c, EXC_DBE, addr); }
+    return 0;
 }
 
 static int wrh(core_t *c, uint32_t addr, uint16_t in)
 {
     uint32_t w_addr;
     int offset;
+    int ret;
 
-    if (addr & 0x1) { return EXC_ADES; }
-
+    if (addr & 0x1) { return except_vm(c, EXC_ADES, addr); }
     w_addr = addr & ~0x3;
     offset = addr &  0x3;
+    if (!vm_check(c, w_addr, 1)) { return except_vm(c, EXC_ADES, addr); }
 
-    return mem_write(c->mem, w_addr,
-                     (uint32_t)in << (8 * offset),
-                     0x3 << offset);
+    ret = mem_write(c->mem, w_addr,
+                    (uint32_t)in << (8 * offset),
+                    0x3 << offset);
+    if (ret) { return except_vm(c, EXC_DBE, addr); }
+    return 0;
 }
 
 static int wrw(core_t *c, uint32_t addr, uint32_t in)
 {
-    if (addr & 0x3) { return EXC_ADES; }
+    int ret;
 
-    return mem_write(c->mem, addr, in, 0xF);
+    if (addr & 0x3) { return except_vm(c, EXC_ADES, addr); }
+    if (!vm_check(c, addr, 1)) { return except_vm(c, EXC_ADES, addr); }
+
+    ret = mem_write(c->mem, addr, in, 0xF);
+    if (ret) { return except_vm(c, EXC_DBE, addr); }
+    return 0;
+}
+
+static int vm_check(core_t *c, uint32_t addr, int write)
+{
+    write = write;
+    return !(user_mode(c) && (addr & 0x80000000));
+}
+
+static int user_mode(core_t *c)
+{
+    return core_cp0_user_mode(c, &c->cp0);
 }
 
 static void set_hilo(core_t *c, uint64_t val)
@@ -490,6 +556,15 @@ static void set_hilo(core_t *c, uint64_t val)
 static int except(core_t *c, uint8_t exc_code)
 {
     return core_cp0_except(c, &c->cp0, exc_code);
+}
+
+static int except_vm(core_t *c, uint8_t exc_code, uint32_t badvaddr)
+{
+    int ret;
+
+    ret = core_cp0_move_to(c, &c->cp0, CP0_BADVADDR, badvaddr);
+    if (ret) { return ret; }
+    return except(c, exc_code);
 }
 
 static int add_overflows(uint32_t a, uint32_t b)

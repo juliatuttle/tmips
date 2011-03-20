@@ -50,38 +50,40 @@ enum {
 };
 
 enum {
-    FUNCT_SLL     = 000,
-    FUNCT_SRL     = 002,
-    FUNCT_SRA     = 003,
-    FUNCT_SLLV    = 004,
-    FUNCT_SRLV    = 006,
-    FUNCT_SRAV    = 007,
+    FUNCT_SLL      = 000,
+    FUNCT_SRL      = 002,
+    FUNCT_SRA      = 003,
+    FUNCT_SLLV     = 004,
+    FUNCT_SRLV     = 006,
+    FUNCT_SRAV     = 007,
 
-    FUNCT_JR      = 010,
-    FUNCT_JALR    = 011,
-    FUNCT_SYSCALL = 014,
+    FUNCT_JR       = 010,
+    FUNCT_JALR     = 011,
+    FUNCT_SYSCALL  = 014,
 
-    FUNCT_MFHI    = 020,
-    FUNCT_MTHI    = 021,
-    FUNCT_MFLO    = 022,
-    FUNCT_MTLO    = 023,
+    FUNCT_TESTDONE = 016,
 
-    FUNCT_MULT    = 030,
-    FUNCT_MULTU   = 031,
-    FUNCT_DIV     = 032,
-    FUNCT_DIVU    = 033,
+    FUNCT_MFHI     = 020,
+    FUNCT_MTHI     = 021,
+    FUNCT_MFLO     = 022,
+    FUNCT_MTLO     = 023,
 
-    FUNCT_ADD     = 040,
-    FUNCT_ADDU    = 041,
-    FUNCT_SUB     = 042,
-    FUNCT_SUBU    = 043,
-    FUNCT_AND     = 044,
-    FUNCT_OR      = 045,
-    FUNCT_XOR     = 046,
-    FUNCT_NOR     = 047,
+    FUNCT_MULT     = 030,
+    FUNCT_MULTU    = 031,
+    FUNCT_DIV      = 032,
+    FUNCT_DIVU     = 033,
 
-    FUNCT_SLT     = 052,
-    FUNCT_SLTU    = 053,
+    FUNCT_ADD      = 040,
+    FUNCT_ADDU     = 041,
+    FUNCT_SUB      = 042,
+    FUNCT_SUBU     = 043,
+    FUNCT_AND      = 044,
+    FUNCT_OR       = 045,
+    FUNCT_XOR      = 046,
+    FUNCT_NOR      = 047,
+
+    FUNCT_SLT      = 052,
+    FUNCT_SLTU     = 053,
 };
 
 enum {
@@ -96,6 +98,10 @@ enum {
     COP_MF = 000,
 
     COP_MT = 004,
+};
+
+enum {
+    CP0_FUNCT_ERET = 030,
 };
 
 #endif
