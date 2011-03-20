@@ -2,6 +2,7 @@
 #define HAVE_CP0_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 enum {
     CP0_INDEX = 0,
@@ -54,5 +55,6 @@ int core_cp0_eret(core_t *c, core_cp0_t *cp0, uint32_t *newpc);
 int core_cp0_user_mode(core_t *c, core_cp0_t *cp0);
 int core_cp0_move_from(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t *val_out);
 int core_cp0_move_to(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t val);
+void core_cp0_dump_regs(core_t *c, core_cp0_t *cp0, FILE *out);
 
 #endif

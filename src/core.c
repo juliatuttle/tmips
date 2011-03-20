@@ -7,6 +7,7 @@
 #include "core_cp0.h"
 #include "err.h"
 #include "exc.h"
+#include "filter.h"
 #include "opcode.h"
 #include "util.h"
 
@@ -14,6 +15,7 @@
 
 struct core {
     mem_t *mem;
+    filter_t *filter;
     uint32_t r[NUM_REGS];
     uint32_t hi;
     uint32_t lo;
@@ -43,6 +45,7 @@ core_t *core_create(mem_t *m)
 {
     core_t *c = xmalloc(sizeof(*c));
     c->mem = m;
+    c->filter = NULL;
     return c;
 }
 
@@ -66,6 +69,11 @@ uint32_t core_get_pc(core_t *c)
 void core_set_pc(core_t *c, uint32_t pc)
 {
     c->pc = pc;
+}
+
+void core_set_filter(core_t *c, filter_t *f)
+{
+    c->filter = f;
 }
 
 #define SE8(b) ((uint32_t)((int32_t)((int8_t)(b))))
@@ -101,6 +109,14 @@ int __core_step(core_t *c)
 
     ret = rdiw(c, c->pc, &ins);
     if (ret) { return ret; }
+
+    if (c->filter) {
+        if (!filter_ins_allowed(c->filter, ins)) {
+            fprintf(stderr, "core_step: Unsupported instruction: %08x (PC=%08x)\n",
+                    ins, c->pc);
+            return except(c, EXC_RI);
+        }
+    }
 
 #ifdef DEBUG_TRACE_STEP
     fprintf(stderr, "core_step: fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) from %08x (in %s mode)\n",
@@ -430,6 +446,8 @@ void core_dump_regs(core_t *c, FILE *out)
             fprintf(out, "\n");
         }
     }
+
+    core_cp0_dump_regs(c, &c->cp0, out);
 }
 
 
@@ -555,6 +573,13 @@ static void set_hilo(core_t *c, uint64_t val)
 
 static int except(core_t *c, uint8_t exc_code)
 {
+    if (c->filter) {
+        if (!filter_exc_allowed(c->filter, exc_code)) {
+            fprintf(stderr, "except: Unsupported exception: %s\n", exc_text[exc_code]);
+            return ERR_EXC;
+        }
+    }
+
     return core_cp0_except(c, &c->cp0, exc_code);
 }
 

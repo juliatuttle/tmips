@@ -47,6 +47,8 @@ enum {
     OP_SH      = 051,
 
     OP_SW      = 053,
+
+    NUM_OPS   = 0100
 };
 
 enum {
@@ -84,6 +86,8 @@ enum {
 
     FUNCT_SLT      = 052,
     FUNCT_SLTU     = 053,
+
+    NUM_FUNCTS    = 0100
 };
 
 enum {
@@ -92,16 +96,22 @@ enum {
 
     REGIMM_BLTZAL = 020,
     REGIMM_BGEZAL = 021,
+
+    NUM_REGIMMS   = 040
 };
 
 enum {
-    COP_MF = 000,
+    COP_MF   = 000,
 
-    COP_MT = 004,
+    COP_MT   = 004,
+
+    NUM_COPS = 040
 };
 
 enum {
-    CP0_FUNCT_ERET = 030,
+    CP0_FUNCT_ERET  = 030,
+
+    NUM_CP0_FUNCTS = 0100
 };
 
 #endif

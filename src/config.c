@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "core.h"
+#include "filter.h"
 #include "mem.h"
 #include "mem_dev.h"
 #include "ram.h"
@@ -98,6 +99,17 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
                 return 1;
             }
             mem_map(cfg->mem, addr, serial_create(0, 1));
+            i += 2;
+        } else if (!strcmp(argv[i], "--filter") || !strcmp(argv[i], "-f")) {
+            if (argc - i < 2) {
+                fprintf(stderr, "--filter: expected <filter>\n");
+                return 1;
+            }
+            cfg->filter = filter_find(argv[i + 1]);
+            if (!cfg->filter) {
+                fprintf(stderr, "--filter: unknown filter \"%s\"\n", argv[i + 1]);
+                return 1;
+            }
             i += 2;
         } else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
             usage(argv[0]);
