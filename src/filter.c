@@ -1,16 +1,25 @@
+#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "exc.h"
 #include "opcode.h"
 
-#define FUNCT_OFFSET (NUM_OPS)
-#define REGIMM_OFFSET (NUM_OPS + NUM_FUNCTS)
-#define NUM_SLOTS (NUM_OPS + NUM_FUNCTS + NUM_REGIMMS)
+#define OP_OFFSET 0
+#define FUNCT_OFFSET (OP_OFFSET + NUM_OPS)
+#define REGIMM_OFFSET (FUNCT_OFFSET + NUM_FUNCTS)
+#define COP0_OFFSET (REGIMM_OFFSET + NUM_REGIMMS)
+#define CP0_FUNCT_OFFSET (COP0_OFFSET + NUM_COPS)
+#define EXC_OFFSET (CP0_FUNCT_OFFSET + NUM_CP0_FUNCTS)
+#define NUM_SLOTS (EXC_OFFSET + NUM_EXCS)
 
 #define ALLOW_OP(op) [ OP_ ## op ] = 1
 #define ALLOW_FUNCT(funct) [ FUNCT_OFFSET + FUNCT_ ## funct ] = 1
 #define ALLOW_REGIMM(regimm) [ REGIMM_OFFSET + REGIMM_ ## regimm ] = 1
+#define ALLOW_COP0(cop) [ COP0_OFFSET + COP_ ## cop ] = 1
+#define ALLOW_CP0_FUNCT(funct) [ CP0_FUNCT_OFFSET + CP0_FUNCT_ ## funct ] = 1
+#define ALLOW_EXC(exc) [ EXC_OFFSET + EXC_ ## exc ] = 1
 
 typedef struct filter filter_t;
 struct filter {
@@ -118,6 +127,13 @@ int filter_ins_allowed(filter_t *filter, uint32_t ins)
     } else {
         return check(filter, OP(ins));
     }
+}
+
+int filter_exc_allowed(filter_t *filter, uint8_t exc_code)
+{
+    assert(exc_code < NUM_EXCS);
+
+    return check(filter, EXC_OFFSET + exc_code);
 }
 
 static int check(filter_t *filter, unsigned offset)

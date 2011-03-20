@@ -7,5 +7,6 @@ typedef struct filter filter_t;
 
 filter_t *filter_find(char *name);
 int filter_ins_allowed(filter_t *filter, uint32_t ins);
+int filter_exc_allowed(filter_t *filter, uint8_t exc_code);
 
 #endif

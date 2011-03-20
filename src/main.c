@@ -7,7 +7,8 @@
 
 #include "config.h"
 #include "core.h"
-#include "error.h"
+#include "err.h"
+#include "exc.h"
 #include "mem.h"
 #include "ram.h"
 #include "readmemh.h"
@@ -33,7 +34,7 @@ int main(int argc, char *argv[])
     core_set_pc(c.core, c.pc);
     core_set_filter(c.core, c.filter);
 
-    while (1) {
+    do {
         if (c.step) {
             core_dump_regs(c.core, stderr);
             {
@@ -43,8 +44,7 @@ int main(int argc, char *argv[])
             }
         }
         ret = core_step(c.core);
-        if (ret) { break; }
-    }
+    } while (!ret);
 
     fprintf(c.dump_file, "Halted: %s.\n", err_text[ret]);
     core_dump_regs(c.core, c.dump_file);
