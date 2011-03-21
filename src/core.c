@@ -299,6 +299,11 @@ int __core_step(core_t *c)
     case OP_REGIMM:
         switch (RT(ins)) {
         case REGIMM_BLTZAL:
+            if (RS(ins) == 31) {
+                debug_printf(CORE, WARNING,
+                             "Undefined behavior: BLTZAL at %08x (rs = 31)\n",
+                             c->pc);
+            }
             if ((int32_t)c->r[RS(ins)] < 0) {
                 newpc = BRANCH_TARGET(c, ins);
             }
@@ -310,6 +315,11 @@ int __core_step(core_t *c)
             }
             break;
         case REGIMM_BGEZAL:
+            if (RS(ins) == 31) {
+                debug_printf(CORE, WARNING,
+                             "Undefined behavior: BGEZAL at %08x (rs = 31)\n",
+                             c->pc);
+            }
             if ((int32_t)c->r[RS(ins)] >= 0) {
                 newpc = BRANCH_TARGET(c, ins);
             }
