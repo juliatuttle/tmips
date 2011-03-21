@@ -5,6 +5,8 @@
 #include "ram.h"
 #include "util.h"
 
+#define RAM_INIT_VALUE 0xDEADBEEF
+
 static int ram_read(mem_dev_t *ram, uint32_t offset, uint32_t *val_out);
 static int ram_write(mem_dev_t *ram, uint32_t offset, uint32_t val, uint8_t we);
 
@@ -20,6 +22,8 @@ mem_dev_t *ram_create(uint32_t size)
 {
     ram_dev_t *d;
     uint32_t i, *p;
+
+    assert(!(size & 0x3));
 
     debug_printf(RAM, INFO, "Creating RAM (size=%08x)\n", size);
 
