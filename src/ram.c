@@ -19,6 +19,7 @@ struct ram_dev {
 mem_dev_t *ram_create(uint32_t size)
 {
     ram_dev_t *d;
+    uint32_t i, *p;
 
     debug_printf(RAM, INFO, "Creating RAM (size=%08x)\n", size);
 
@@ -27,6 +28,11 @@ mem_dev_t *ram_create(uint32_t size)
     d->dev.read = &ram_read;
     d->dev.write = &ram_write;
     d->data = xmalloc(size);
+
+    p = (uint32_t *)d->data;
+    for (i = 0; i < size / 4; i++) {
+    	p[i] = RAM_INIT_VALUE;
+    }
 
     return (mem_dev_t *)d;
 }
