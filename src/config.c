@@ -124,6 +124,16 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
         } else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
             usage(argv[0]);
             return 1;
+        } else if (!strcmp(argv[i], "--quiet") || !strcmp(argv[i], "-q")) {
+            if (cfg->debug > 0) {
+                debug_set_level(--cfg->debug);
+            }
+            i += 1;
+        } else if (!strcmp(argv[i], "--verbose") || !strcmp(argv[i], "-v")) {
+            if (cfg->debug < NUM_DEBUG_LEVELS - 1) {
+                debug_set_level(++cfg->debug);
+            }
+            i += 1;
         } else if (!strcmp(argv[i], "--version") || !strcmp(argv[i], "-V")) {
             version();
             return 1;
@@ -173,6 +183,12 @@ static void usage(char *progn)
         "\n"
         "    --help|-h\n"
         "        Shows this help screen.\n"
+        "\n"
+        "    --quiet|-q\n"
+        "        Decreases the verbosity of the program's output.\n"
+        "\n"
+        "    --verbose|-v\n"
+        "        Increases the verbosity of the program's output.\n"
         "\n"
         "    --version|-V\n"
         "        Prints the program version.\n"

@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     int ret;
 
     debug_init();
-    debug_set_level(DEBUG_LEVEL_INFO);
+    debug_set_level(DEBUG_LEVEL_WARNING);
 
     c.mem = mem_create();
     c.core = core_create(c.mem);
@@ -28,6 +28,9 @@ int main(int argc, char *argv[])
     c.dump_file = stdout;
     c.filter = NULL;
     c.step = 0;
+    /* Note: config_parse_args calls debug_set_level itself so it will apply
+       to messages output as a result of further configuration options. */
+    c.debug = DEBUG_LEVEL_WARNING;
 
     ret = config_parse_args(&c, argc, argv);
     if (ret) {

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "core.h"
+#include "debug.h"
 #include "filter.h"
 #include "mem.h"
 
@@ -16,6 +17,7 @@ struct config {
     uint32_t pc;
     FILE *dump_file;
     filter_t *filter;
+    debug_level_t debug;
     int step;
 };
 
