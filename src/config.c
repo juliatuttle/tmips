@@ -111,6 +111,13 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
                 return 1;
             }
             i += 2;
+        } else if (!strncmp(argv[i], "--filter=", 9)) {
+            cfg->filter = filter_find(argv[i] + 9);
+            if (!cfg->filter) {
+                debug_printf(CONFIG, FATAL, "--filter: unknown filter \"%s\"\n", argv[i] + 9);
+                return 1;
+            }
+            i += 1;
         } else if (!strcmp(argv[i], "--step") || !strcmp(argv[i], "-s")) {
             cfg->step = 1;
             i += 1;
