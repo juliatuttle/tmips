@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     int ret;
 
     debug_init();
-    debug_set_level(DEBUG_LEVEL_TRACE);
+    debug_set_level(DEBUG_LEVEL_INFO);
 
     c.mem = mem_create();
     c.core = core_create(c.mem);
