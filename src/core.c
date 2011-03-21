@@ -292,7 +292,7 @@ int __core_step(core_t *c)
             }
             break;
         default:
-            debug_printf(CORE, DETAIL, "unimplemented SPECIAL function %03o\n", FUNCT(ins));
+            debug_printf(CORE, DETAIL, "Unimplemented SPECIAL function %03o\n", FUNCT(ins));
             return except(c, EXC_RI);
         }
         break;
@@ -301,7 +301,7 @@ int __core_step(core_t *c)
         case REGIMM_BLTZAL:
             if (RS(ins) == 31) {
                 debug_printf(CORE, WARNING,
-                             "Undefined behavior: BLTZAL at %08x (rs = 31)\n",
+                             "Undefined behavior: BLTZAL at %08x has rs = 31\n",
                              c->pc);
             }
             if ((int32_t)c->r[RS(ins)] < 0) {
@@ -317,7 +317,7 @@ int __core_step(core_t *c)
         case REGIMM_BGEZAL:
             if (RS(ins) == 31) {
                 debug_printf(CORE, WARNING,
-                             "Undefined behavior: BGEZAL at %08x (rs = 31)\n",
+                             "Undefined behavior: BGEZAL at %08x has rs = 31\n",
                              c->pc);
             }
             if ((int32_t)c->r[RS(ins)] >= 0) {
@@ -331,7 +331,7 @@ int __core_step(core_t *c)
             }
             break;
         default:
-            debug_printf(CORE, DETAIL, "unimplemented REGIMM rt %03o\n", RT(ins));
+            debug_printf(CORE, DETAIL, "Unimplemented REGIMM rt %03o\n", RT(ins));
             return except(c, EXC_RI);
         }
         break;
@@ -454,18 +454,18 @@ int __core_step(core_t *c)
                 if (ret) return ret;
                 break;
             default:
-                debug_printf(CORE, DETAIL, "core_step: unimplemented CP0 funct %03o\n",
+                debug_printf(CORE, DETAIL, "Unimplemented CP0 funct %03o\n",
                         FUNCT(ins));
                 return except(c, EXC_RI);
             }
             break;
         default:
-            debug_printf(CORE, DETAIL, "core_step: unimplemented COP0 rs %03o\n", RS(ins));
+            debug_printf(CORE, DETAIL, "Unimplemented COP0 rs %03o\n", RS(ins));
             return except(c, EXC_RI);
         }
         break;
     default:
-        debug_printf(CORE, DETAIL, "core_step: unimplemented OP %03o\n", OP(ins));
+        debug_printf(CORE, DETAIL, "Unimplemented OP %03o\n", OP(ins));
         return except(c, EXC_RI);
     }
 
