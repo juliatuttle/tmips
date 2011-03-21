@@ -48,13 +48,13 @@ int readmemh_load(mem_t *mem, uint32_t base, char *file)
         } else if (isxdigit(c)) {
             ret = read_word(&ctx, c, &w);
             if (ret == ERROR) { return 1; }
-            ret = mem_write(mem, base + at, w, 0xF);
+            ret = mem_write(mem, base + at * 4, w, 0xF);
             if (ret) { 
                 debug_printf(READMEMH, ERROR, "%s:%d: Couldn't write word to %08x.\n",
-                        file, ctx.line, base + at);
+                        file, ctx.line, base + at * 4);
                 return 1;
             }
-            at += 4;
+            at++;
         } else if (isspace(c)) {
             ret = 0;
         } else {
