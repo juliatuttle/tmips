@@ -25,7 +25,7 @@ mem_dev_t *ram_create(uint32_t size)
 
     assert(!(size & 0x3));
 
-    debug_printf(RAM, DETAIL, "Creating RAM (size=%08x)\n", size);
+    debug_printf(RAM, INFO, "Creating RAM (size=%08x)\n", size);
 
     d = xmalloc(sizeof(*d));
     d->dev.size = size;

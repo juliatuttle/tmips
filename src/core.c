@@ -126,7 +126,7 @@ int __core_step(core_t *c)
 
     if (c->filter) {
         if (!filter_ins_allowed(c->filter, ins)) {
-            debug_printf(CORE, DETAIL, "Unsupported instruction: %08x (PC=%08x)\n",
+            debug_printf(CORE, INFO, "Unsupported instruction: %08x (PC=%08x)\n",
                     ins, c->pc);
             return except(c, EXC_RI);
         }
@@ -619,7 +619,7 @@ static int except(core_t *c, uint8_t exc_code)
 {
     if (c->filter) {
         if (!filter_exc_allowed(c->filter, exc_code)) {
-            debug_printf(CORE, DETAIL, "Unsupported exception: %s\n", exc_text[exc_code]);
+            debug_printf(CORE, INFO, "Unsupported exception: %s\n", exc_text[exc_code]);
             return ERR_EXC;
         }
     }
