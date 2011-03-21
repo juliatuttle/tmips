@@ -132,8 +132,13 @@ int __core_step(core_t *c)
         }
     }
 
-    debug_printf(CORE, TRACE, "Fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) from %08x (in %s mode)\n",
-        ins, OP(ins), RS(ins), RT(ins), RD(ins), SA(ins), FUNCT(ins), IMMED(ins), TARGET(ins), c->pc, user_mode(c) ? "user" : "kernel");
+    debug_printf(CORE, TRACE,
+                 "Fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d "
+                 "SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) "
+                 "from %08x (in %s mode)\n",
+                 ins, OP(ins), RS(ins), RT(ins), RD(ins),
+                 SA(ins), FUNCT(ins), IMMED(ins), TARGET(ins),
+                 c->pc, user_mode(c) ? "user" : "kernel");
 
     newpc = c->pc + 4;
 
@@ -169,8 +174,13 @@ int __core_step(core_t *c)
             break;
         case FUNCT_JALR:
             if ((RT(ins) != 0) || (SA(ins) != 0)) { return except(c, EXC_RI); }
-            c->r[RD(ins)] = c->pc + 4;
+            if (RS(ins) == RD(ins)) {
+                debug_printf(CORE, WARNING,
+                             "Undefined behavior: JAL at %08x has rs = rd\n",
+                             c->pc);
+            }
             newpc = c->r[RS(ins)];
+            c->r[RD(ins)] = c->pc + 4;
             break;
         case FUNCT_SYSCALL:
             return except(c, EXC_SYS);
@@ -289,16 +299,22 @@ int __core_step(core_t *c)
     case OP_REGIMM:
         switch (RT(ins)) {
         case REGIMM_BLTZAL:
+            if ((int32_t)c->r[RS(ins)] < 0) {
+                newpc = BRANCH_TARGET(c, ins);
+            }
             LINK(c);
-            /* Fall through. */
+            break;
         case REGIMM_BLTZ:
             if ((int32_t)c->r[RS(ins)] < 0) {
                 newpc = BRANCH_TARGET(c, ins);
             }
             break;
         case REGIMM_BGEZAL:
+            if ((int32_t)c->r[RS(ins)] >= 0) {
+                newpc = BRANCH_TARGET(c, ins);
+            }
             LINK(c);
-            /* Fall through. */
+            break;
         case REGIMM_BGEZ:
             if ((int32_t)c->r[RS(ins)] >= 0) {
                 newpc = BRANCH_TARGET(c, ins);
@@ -310,8 +326,9 @@ int __core_step(core_t *c)
         }
         break;
     case OP_JAL:
+        newpc = JUMP_TARGET(c, ins);
         LINK(c);
-        /* Fall through. */
+        break;
     case OP_J:
         newpc = JUMP_TARGET(c, ins);
         break;
