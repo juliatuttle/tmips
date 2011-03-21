@@ -74,7 +74,7 @@ int readmemh_load(mem_t *mem, uint32_t base, char *file)
         return 1;
     }
 
-    debug_printf(READMEMH, TRACE, "Loaded \"%s\" at %08x\n", file, base);
+    debug_printf(READMEMH, INFO, "Loaded \"%s\" at %08x\n", file, base);
 
     return 0;
 }
