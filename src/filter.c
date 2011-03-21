@@ -103,7 +103,32 @@ static filter_t lab3 = {
     .allowed = { }
 };
 
-static filter_t *filters[] = { &lab1, &lab2, &lab3, NULL };
+static filter_t lab4 = {
+    .name = "lab4",
+    .parent = &lab3,
+    .allowed = {
+        ALLOW_FUNCT(TESTDONE),
+        ALLOW_COP0(MF),
+        ALLOW_COP0(MT),
+        ALLOW_CP0_FUNCT(ERET),
+        ALLOW_EXC(ADEL),
+        ALLOW_EXC(ADES),
+        ALLOW_EXC(SYS)
+    }
+};
+
+static filter_t lab4ec = {
+    .name = "lab4ec",
+    .parent = &lab4,
+    .allowed = {
+        ALLOW_EXC(IBE),
+        ALLOW_EXC(DBE),
+        ALLOW_EXC(RI),
+        ALLOW_EXC(OV)
+    }
+};
+
+static filter_t *filters[] = { &lab1, &lab2, &lab3, &lab4, &lab4ec, NULL };
 
 filter_t *filter_find(char *name)
 {
