@@ -53,7 +53,7 @@ mem_region_t *mem_map(mem_t *m, uint32_t base, mem_dev_t *d)
     r->next = m->regions;
     m->regions = r;
 
-    debug_printf(MEM, INFO, "Memory mapped at %08x-%08x (%08x)\n",
+    debug_printf(MEM, DETAIL, "Memory mapped at %08x-%08x (%08x)\n",
         base, base + d->size, d->size);
 
     return r;
@@ -63,7 +63,7 @@ void mem_unmap(mem_t *m, mem_region_t *r)
 {
     assert(r->mem == m);
 
-    debug_printf(MEM, INFO, "Memory unmapped at %08x-%08x (%08x)\n",
+    debug_printf(MEM, DETAIL, "Memory unmapped at %08x-%08x (%08x)\n",
         r->base, r->base + r->dev->size, r->dev->size);
 
     if (r->prev) {
