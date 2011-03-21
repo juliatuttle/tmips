@@ -26,7 +26,6 @@ int core_cp0_except(core_t *c, core_cp0_t *cp0, uint8_t exc_code)
     assert(!(exc_code & ~0x1F));
 
     epc = core_get_pc(c);
-    if (exc_code == EXC_SYS) { epc += 4; }
     cp0->r[CP0_EPC] = epc;
     cp0->r[CP0_CAUSE] = exc_code << 2;
     cp0->r[CP0_STATUS] &= ~STATUS_UM;
