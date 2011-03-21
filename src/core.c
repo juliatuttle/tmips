@@ -280,6 +280,7 @@ int __core_step(core_t *c)
                 c->lo = 0xDEADBEEF;
                 c->hi = 0xFEEDFACE;
             }
+            break;
         default:
             debug_printf(CORE, DETAIL, "unimplemented SPECIAL function %03o\n", FUNCT(ins));
             return except(c, EXC_RI);
