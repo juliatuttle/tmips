@@ -50,7 +50,8 @@ int readmemh_load(mem_t *mem, uint32_t base, char *file)
             if (ret == ERROR) { return 1; }
             ret = mem_write(mem, base + at * 4, w, 0xF);
             if (ret) { 
-                debug_printf(READMEMH, ERROR, "%s:%d: Couldn't write word to %08x.\n",
+                debug_printf(READMEMH, ERROR,
+                        "%s:%d: Couldn't write word to %08x.\n",
                         file, ctx.line, base + at * 4);
                 return 1;
             }
@@ -59,7 +60,7 @@ int readmemh_load(mem_t *mem, uint32_t base, char *file)
             ret = 0;
         } else {
             debug_printf(READMEMH, ERROR, "%s:%d: invalid character '%c'\n",
-                         file, ctx.line, c);
+                    file, ctx.line, c);
             return 1;
         }
 
@@ -70,7 +71,8 @@ int readmemh_load(mem_t *mem, uint32_t base, char *file)
     }
 
     if (ret < 0) {
-        debug_printf(READMEMH, ERROR, "%s:%d: %s\n", ctx.file, ctx.line, strerror(errno));
+        debug_printf(READMEMH, ERROR,
+                "%s:%d: %s\n", ctx.file, ctx.line, strerror(errno));
         return 1;
     }
 
@@ -91,11 +93,13 @@ static int read_word(struct context *ctx, int c0, uint32_t *out)
     if (have_c0) { buf[0] = c0; }
     ret = fread(buf + have_c0, 1, 8 - have_c0, ctx->f);
     if (ret < 0) {
-        debug_printf(READMEMH, ERROR, "%s:%d: %s\n", ctx->file, ctx->line, strerror(errno));
+        debug_printf(READMEMH, ERROR,
+                "%s:%d: %s\n", ctx->file, ctx->line, strerror(errno));
         return ERROR;
     }
     if (ret < 8 - have_c0) {
-        debug_printf(READMEMH, ERROR, "%s:%d: unexpected EOF\n", ctx->file, ctx->line);
+        debug_printf(READMEMH, ERROR,
+                "%s:%d: unexpected EOF\n", ctx->file, ctx->line);
         return ERROR;
     }
     buf[8] = 0;
@@ -103,7 +107,7 @@ static int read_word(struct context *ctx, int c0, uint32_t *out)
     w = strtoul(buf, &end, 16);
     if (*end) {
         debug_printf(READMEMH, ERROR, "%s:%d: invalid word data \"%s\"\n",
-                     ctx->file, ctx->line, buf);
+                ctx->file, ctx->line, buf);
         return ERROR;
     }
 

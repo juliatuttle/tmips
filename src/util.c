@@ -8,7 +8,8 @@
 void *xmalloc(size_t size) {
     void *p = malloc(size);
     if (!p) {
-        debug_printf(UTIL, FATAL, "xmalloc: malloc(%li) returned NULL\n", size);
+        debug_printf(UTIL, FATAL, "xmalloc: malloc(%li) returned NULL\n",
+                size);
         abort();
     }
     return p;

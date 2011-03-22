@@ -17,7 +17,8 @@ struct serial_dev {
 };
 
 static int serial_read(mem_dev_t *dev, uint32_t offset, uint32_t *val_out);
-static int serial_write(mem_dev_t *dev, uint32_t offset, uint32_t val, uint8_t we);
+static int serial_write(mem_dev_t *dev, uint32_t offset,
+                        uint32_t val, uint8_t we);
 
 mem_dev_t *serial_create(int infd, int outfd)
 {
@@ -62,7 +63,8 @@ static int serial_read(mem_dev_t *dev, uint32_t offset, uint32_t *val_out)
     return 0;
 }
 
-static int serial_write(mem_dev_t *dev, uint32_t offset, uint32_t val, uint8_t we)
+static int serial_write(mem_dev_t *dev, uint32_t offset,
+                        uint32_t val, uint8_t we)
 {
     serial_dev_t *ser = (serial_dev_t *)dev;
     char c;

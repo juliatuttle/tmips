@@ -30,7 +30,8 @@ void debug_set_module_level(debug_module_t module, debug_level_t level)
     max_level[module] = level;
 }
 
-void __debug_printf(debug_module_t module, debug_level_t level, char *fmt, ...) 
+void __debug_printf(debug_module_t module, debug_level_t level, char *fmt,
+                    ...) 
 {
     va_list ap;
 

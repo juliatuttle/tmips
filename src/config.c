@@ -27,8 +27,9 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
     int saw_dump_file = 0;
 
     if (argc < 2) {
-        debug_print(CONFIG, WARNING, "Processors tend to be unhappy with nothing on their bus.\n");
-        debug_printf(CONFIG, WARNING, "(Run \"%s --help\" for more info.)\n", argv[0]);
+        debug_printf(CONFIG, WARNING,
+                "Processors tend to be unhappy with nothing on their bus.\n"
+                "(Run \"%s --help\" for more info.)\n", argv[0]);
     }
 
     for (i = 1; i < argc; ) {
@@ -37,17 +38,20 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             char *end;
 
             if (argc - i < 4) {
-                debug_print(CONFIG, FATAL, "--region: expected <base> <size> <readmemh-file>\n");
+                debug_print(CONFIG, FATAL,
+                        "--region: expected <base> <size> <readmemh-file>\n");
                 return 1;
             }
             base = strtoul(argv[i + 1], &end, 16);
             if (*end != '\0') {
-                debug_printf(CONFIG, FATAL, "--region: invalid base \"%s\"\n", argv[i + 1]);
+                debug_printf(CONFIG, FATAL,
+                        "--region: invalid base \"%s\"\n", argv[i + 1]);
                 return 1;
             }
             size = strtoul(argv[i + 2], &end, 16);
             if (*end != '\0') {
-                debug_printf(CONFIG, FATAL, "--region: invalid size \"%s\"\n", argv[i + 2]);
+                debug_printf(CONFIG, FATAL,
+                        "--region: invalid size \"%s\"\n", argv[i + 2]);
                 return 1;
             }
             if (do_region(cfg->mem, base, size, argv[i + 3])) {
@@ -64,7 +68,8 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             }
             pc = strtoul(argv[i + 1], &end, 16);
             if (*end != '\0') {
-                debug_printf(CONFIG, FATAL, "--pc: invalid pc \"%s\"\n", argv[i + 1]);
+                debug_printf(CONFIG, FATAL,
+                        "--pc: invalid pc \"%s\"\n", argv[i + 1]);
                 return 1;
             }
             cfg->pc = pc;
@@ -75,12 +80,14 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
                 return 1;
             }
             if (saw_dump_file) {
-                debug_print(CONFIG, FATAL, "--dump: may not be specified multiple times\n");
+                debug_print(CONFIG, FATAL,
+                        "--dump: may not be specified multiple times\n");
                 return 1;
             }
             cfg->dump_file = fopen(argv[i + 1], "w");
             if (!cfg->dump_file) {
-                debug_printf(CONFIG, FATAL, "%s: %s\n", argv[i + 1], strerror(errno));
+                debug_printf(CONFIG, FATAL,
+                        "%s: %s\n", argv[i + 1], strerror(errno));
                 return 1;
             }
             saw_dump_file = 1;
@@ -95,7 +102,8 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             }
             addr = strtoul(argv[i + 1], &end, 16);
             if (*end != '\0') {
-                debug_printf(CONFIG, FATAL, "--console: invalid addr \"%s\"\n", argv[i + 1]);
+                debug_printf(CONFIG, FATAL,
+                        "--console: invalid addr \"%s\"\n", argv[i + 1]);
                 return 1;
             }
             mem_map(cfg->mem, addr, serial_create(0, 1));
@@ -107,14 +115,16 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             }
             cfg->filter = filter_find(argv[i + 1]);
             if (!cfg->filter) {
-                debug_printf(CONFIG, FATAL, "--filter: unknown filter \"%s\"\n", argv[i + 1]);
+                debug_printf(CONFIG, FATAL,
+                        "--filter: unknown filter \"%s\"\n", argv[i + 1]);
                 return 1;
             }
             i += 2;
         } else if (!strncmp(argv[i], "--filter=", 9)) {
             cfg->filter = filter_find(argv[i] + 9);
             if (!cfg->filter) {
-                debug_printf(CONFIG, FATAL, "--filter: unknown filter \"%s\"\n", argv[i] + 9);
+                debug_printf(CONFIG, FATAL,
+                        "--filter: unknown filter \"%s\"\n", argv[i] + 9);
                 return 1;
             }
             i += 1;

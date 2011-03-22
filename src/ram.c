@@ -8,7 +8,8 @@
 #define RAM_INIT_VALUE 0xDEADBEEF
 
 static int ram_read(mem_dev_t *ram, uint32_t offset, uint32_t *val_out);
-static int ram_write(mem_dev_t *ram, uint32_t offset, uint32_t val, uint8_t we);
+static int ram_write(mem_dev_t *ram, uint32_t offset, uint32_t val,
+                     uint8_t we);
 
 static uint32_t we_to_mask(uint8_t we);
 

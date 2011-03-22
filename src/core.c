@@ -126,19 +126,20 @@ int __core_step(core_t *c)
 
     if (c->filter) {
         if (!filter_ins_allowed(c->filter, ins)) {
-            debug_printf(CORE, INFO, "Unsupported instruction: %08x (PC=%08x)\n",
+            debug_printf(CORE, INFO,
+                    "Unsupported instruction: %08x (PC=%08x)\n",
                     ins, c->pc);
             return except(c, EXC_RI);
         }
     }
 
     debug_printf(CORE, TRACE,
-                 "Fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d "
-                 "SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) "
-                 "from %08x (in %s mode)\n",
-                 ins, OP(ins), RS(ins), RT(ins), RD(ins),
-                 SA(ins), FUNCT(ins), IMMED(ins), TARGET(ins),
-                 c->pc, user_mode(c) ? "user" : "kernel");
+            "Fetched %08x (OP=%03o RS=%02d RT=%02d RD=%02d "
+            "SA=%d FUNCT=%03o IMMED=%04x TARGET=%08x) "
+            "from %08x (in %s mode)\n",
+            ins, OP(ins), RS(ins), RT(ins), RD(ins),
+            SA(ins), FUNCT(ins), IMMED(ins), TARGET(ins),
+            c->pc, user_mode(c) ? "user" : "kernel");
 
     newpc = c->pc + 4;
 
@@ -176,8 +177,8 @@ int __core_step(core_t *c)
             if ((RT(ins) != 0) || (SA(ins) != 0)) { return except(c, EXC_RI); }
             if (RS(ins) == RD(ins)) {
                 debug_printf(CORE, WARNING,
-                             "Undefined behavior: JAL at %08x has rs = rd\n",
-                             c->pc);
+                        "Undefined behavior: JAL at %08x has rs = rd\n",
+                        c->pc);
             }
             newpc = c->r[RS(ins)];
             c->r[RD(ins)] = c->pc + 4;
@@ -223,7 +224,11 @@ int __core_step(core_t *c)
             break;
         case FUNCT_SLT:
             if (SA(ins) != 0) { return except(c, EXC_RI); }
-            c->r[RD(ins)] = (((int32_t)c->r[RS(ins)]) < ((int32_t)c->r[RT(ins)])) ? 1 : 0;
+            {
+                int32_t a = (int32_t)c->r[RS(ins)];
+                int32_t b = (int32_t)c->r[RT(ins)];
+                c->r[RD(ins)] = (a < b) ? 1 : 0;
+            }
             break;
         case FUNCT_SLTU:
             if (SA(ins) != 0) { return except(c, EXC_RI); }
@@ -274,8 +279,12 @@ int __core_step(core_t *c)
                 return except(c, EXC_RI);
             }
             if (c->r[RT(ins)] != 0) {
-                c->lo = (uint32_t)(((int32_t)c->r[RS(ins)]) / ((int32_t)c->r[RT(ins)]));
-                c->hi = (uint32_t)(((int32_t)c->r[RS(ins)]) % ((int32_t)c->r[RT(ins)]));
+                {
+                    int32_t a = (int32_t)c->r[RS(ins)];
+                    int32_t b = (int32_t)c->r[RT(ins)];
+                    c->lo = (uint32_t)(a / b);
+                    c->hi = (uint32_t)(a % b);
+                }
             } else {
                 c->lo = 0xDEADBEEF;
                 c->hi = 0xFEEDFACE;
@@ -292,7 +301,8 @@ int __core_step(core_t *c)
             }
             break;
         default:
-            debug_printf(CORE, DETAIL, "Unimplemented SPECIAL function %03o\n", FUNCT(ins));
+            debug_printf(CORE, DETAIL,
+                    "Unimplemented SPECIAL function %03o\n", FUNCT(ins));
             return except(c, EXC_RI);
         }
         break;
@@ -301,8 +311,8 @@ int __core_step(core_t *c)
         case REGIMM_BLTZAL:
             if (RS(ins) == 31) {
                 debug_printf(CORE, WARNING,
-                             "Undefined behavior: BLTZAL at %08x has rs = 31\n",
-                             c->pc);
+                        "Undefined behavior: BLTZAL at %08x has rs = 31\n",
+                        c->pc);
             }
             if ((int32_t)c->r[RS(ins)] < 0) {
                 newpc = BRANCH_TARGET(c, ins);
@@ -317,8 +327,8 @@ int __core_step(core_t *c)
         case REGIMM_BGEZAL:
             if (RS(ins) == 31) {
                 debug_printf(CORE, WARNING,
-                             "Undefined behavior: BGEZAL at %08x has rs = 31\n",
-                             c->pc);
+                        "Undefined behavior: BGEZAL at %08x has rs = 31\n",
+                        c->pc);
             }
             if ((int32_t)c->r[RS(ins)] >= 0) {
                 newpc = BRANCH_TARGET(c, ins);
@@ -331,7 +341,8 @@ int __core_step(core_t *c)
             }
             break;
         default:
-            debug_printf(CORE, DETAIL, "Unimplemented REGIMM rt %03o\n", RT(ins));
+            debug_printf(CORE, DETAIL,
+                    "Unimplemented REGIMM rt %03o\n", RT(ins));
             return except(c, EXC_RI);
         }
         break;
@@ -406,7 +417,7 @@ int __core_step(core_t *c)
         if (ret) return ret;
         c->r[RT(ins)] = w;
         break;
-     case OP_LBU:
+    case OP_LBU:
         ret = rdb(c, ADDR(c, ins), &b);
         if (ret) return ret;
         c->r[RT(ins)] = (uint32_t)b;
@@ -460,7 +471,8 @@ int __core_step(core_t *c)
             }
             break;
         default:
-            debug_printf(CORE, DETAIL, "Unimplemented COP0 rs %03o\n", RS(ins));
+            debug_printf(CORE, DETAIL,
+                    "Unimplemented COP0 rs %03o\n", RS(ins));
             return except(c, EXC_RI);
         }
         break;
@@ -597,7 +609,9 @@ static int wrw(core_t *c, uint32_t addr, uint32_t in)
 static int vm_check(core_t *c, uint32_t addr, int write)
 {
     if (user_mode(c) && (addr & 0x80000000)) {
-        debug_printf(CORE, DETAIL, "Attempt to access kernel memory at %08x in user mode.\n", addr);
+        debug_printf(CORE, DETAIL,
+                "Attempt to access kernel memory at %08x in user mode.\n",
+                addr);
         return 0;
     }
 
@@ -619,7 +633,8 @@ static int except(core_t *c, uint8_t exc_code)
 {
     if (c->filter) {
         if (!filter_exc_allowed(c->filter, exc_code)) {
-            debug_printf(CORE, INFO, "Unsupported exception: %s\n", exc_text[exc_code]);
+            debug_printf(CORE, INFO,
+                    "Unsupported exception: %s\n", exc_text[exc_code]);
             return ERR_EXC;
         }
     }

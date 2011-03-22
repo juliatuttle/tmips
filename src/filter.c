@@ -171,5 +171,5 @@ int filter_exc_allowed(filter_t *filter, uint8_t exc_code)
 static int check(filter_t *filter, unsigned offset)
 {
     return filter->allowed[offset] ||
-           (filter->parent && (check(filter->parent, offset)));
+            (filter->parent && (check(filter->parent, offset)));
 }

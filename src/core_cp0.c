@@ -29,7 +29,9 @@ int core_cp0_except(core_t *c, core_cp0_t *cp0, uint8_t exc_code)
     cp0->r[CP0_EPC] = epc;
     cp0->r[CP0_CAUSE] = exc_code << 2;
     cp0->r[CP0_STATUS] &= ~STATUS_UM;
-    debug_printf(CP0, DETAIL, "Took exception: epc=%08x exc_code=%d (%s)\n", epc, exc_code, exc_text[exc_code]);
+    debug_printf(CP0, DETAIL,
+            "Took exception: epc=%08x exc_code=%d (%s)\n",
+            epc, exc_code, exc_text[exc_code]);
     core_set_pc(c, EXC_VECTOR);
 
     return EXCEPTED;
@@ -51,7 +53,8 @@ int core_cp0_user_mode(core_t *c, core_cp0_t *cp0)
     return !!(cp0->r[CP0_STATUS] & STATUS_UM);
 }
 
-int core_cp0_move_from(core_t *c, core_cp0_t *cp0, uint8_t reg, uint32_t *val_out)
+int core_cp0_move_from(core_t *c, core_cp0_t *cp0, uint8_t reg,
+                       uint32_t *val_out)
 {
     *val_out = (reg < CP0_NUM_REGS) ? cp0->r[reg] : 0;
     return 0;

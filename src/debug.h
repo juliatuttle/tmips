@@ -27,8 +27,10 @@ typedef enum {
 void debug_init(void);
 void debug_set_level(debug_level_t level);
 void debug_set_module_level(debug_module_t module, debug_level_t level);
-void __debug_printf(debug_module_t module, debug_level_t level, char *fmt, ...);
-#define debug_printf(m, l, f, ...) __debug_printf(DEBUG_MODULE_ ## m, DEBUG_LEVEL_ ## l, f, __VA_ARGS__)
+void __debug_printf(debug_module_t module, debug_level_t level, char *fmt,
+                    ...);
+#define debug_printf(m, l, f, ...) \
+        __debug_printf(DEBUG_MODULE_ ## m, DEBUG_LEVEL_ ## l, f, __VA_ARGS__)
 #define debug_print(m, l, s) debug_printf(m, l, "%s", s)
 
 #endif
