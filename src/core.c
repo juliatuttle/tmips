@@ -562,7 +562,7 @@ static int user_mode(core_t *c)
 
 static int translate(core_t *c, uint32_t va, uint32_t *pa_out, int write)
 {
-    if (filter_misc(c->filter, FILTER_MISC_VM)) {
+    if ((!c->filter) || filter_misc(c->filter, FILTER_MISC_VM)) {
         return core_cp0_translate(c, &c->cp0, va, pa_out, write);
     } else {
         *pa_out = va;
