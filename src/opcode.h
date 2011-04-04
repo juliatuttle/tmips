@@ -109,6 +109,8 @@ enum {
 };
 
 enum {
+    CP0_FUNCT_TLBWI = 002,
+    CP0_FUNCT_TLBWR = 006,
     CP0_FUNCT_ERET  = 030,
 
     NUM_CP0_FUNCTS = 0100

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "exc.h"
+#include "filter.h"
 #include "opcode.h"
 
 #define OP_OFFSET 0
@@ -12,7 +13,8 @@
 #define COP0_OFFSET (REGIMM_OFFSET + NUM_REGIMMS)
 #define CP0_FUNCT_OFFSET (COP0_OFFSET + NUM_COPS)
 #define EXC_OFFSET (CP0_FUNCT_OFFSET + NUM_CP0_FUNCTS)
-#define NUM_SLOTS (EXC_OFFSET + NUM_EXCS)
+#define MISC_OFFSET (EXC_OFFSET + NUM_EXCS)
+#define NUM_SLOTS (MISC_OFFSET + NUM_FILTER_MISCS)
 
 #define ALLOW_OP(op) [ OP_ ## op ] = 1
 #define ALLOW_FUNCT(funct) [ FUNCT_OFFSET + FUNCT_ ## funct ] = 1
@@ -20,8 +22,8 @@
 #define ALLOW_COP0(cop) [ COP0_OFFSET + COP_ ## cop ] = 1
 #define ALLOW_CP0_FUNCT(funct) [ CP0_FUNCT_OFFSET + CP0_FUNCT_ ## funct ] = 1
 #define ALLOW_EXC(exc) [ EXC_OFFSET + EXC_ ## exc ] = 1
+#define MISC(misc) [ MISC_OFFSET + FILTER_MISC_ ## misc ] = 1
 
-typedef struct filter filter_t;
 struct filter {
     char *name;
     filter_t *parent;
@@ -128,7 +130,26 @@ static filter_t lab4ec = {
     }
 };
 
-static filter_t *filters[] = { &lab1, &lab2, &lab3, &lab4, &lab4ec, NULL };
+static filter_t lab5ck2 = {
+    .name = "lab5ck2",
+    .parent = &lab4,
+    .allowed = {
+        MISC(VM),
+        ALLOW_CP0_FUNCT(TLBWI),
+        ALLOW_CP0_FUNCT(TLBWR)
+    }
+};
+
+static filter_t lab5 = {
+    .name = "lab5",
+    .parent = &lab5ck2,
+    .allowed = {
+        ALLOW_EXC(TLBL),
+        ALLOW_EXC(TLBS)
+    }
+};
+
+static filter_t *filters[] = { &lab1, &lab2, &lab3, &lab4, &lab4ec, &lab5ck2, &lab5, NULL };
 
 filter_t *filter_find(char *name)
 {
@@ -166,6 +187,13 @@ int filter_exc_allowed(filter_t *filter, uint8_t exc_code)
     assert(exc_code < NUM_EXCS);
 
     return check(filter, EXC_OFFSET + exc_code);
+}
+
+int filter_misc(filter_t *filter, int misc)
+{
+    assert(misc >= 0 && misc < NUM_FILTER_MISCS);
+
+    return check(filter, MISC_OFFSET + misc);
 }
 
 static int check(filter_t *filter, unsigned offset)

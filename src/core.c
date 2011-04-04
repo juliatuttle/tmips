@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +29,16 @@ struct core {
 };
 
 static int __core_step(core_t *c);
+
+static int add_overflows(uint32_t a, uint32_t b);
+static int sub_overflows(uint32_t a, uint32_t b);
+static void set_hilo(core_t *c, uint64_t val);
+
+static int except(core_t *c, uint8_t exc_code);
+static int except_vm(core_t *c, uint8_t exc_code, uint32_t badvaddr);
+static int user_mode(core_t *c);
+static int translate(core_t *c, uint32_t va, uint32_t *pa_out, int write);
+
 static int rdb(core_t *c, uint32_t addr, uint8_t *out);
 static int rdh(core_t *c, uint32_t addr, uint16_t *out);
 static int rdw(core_t *c, uint32_t addr, uint32_t *out);
@@ -35,14 +46,8 @@ static int rdiw(core_t *c, uint32_t addr, uint32_t *out);
 static int wrb(core_t *c, uint32_t addr, uint8_t in);
 static int wrh(core_t *c, uint32_t addr, uint16_t in);
 static int wrw(core_t *c, uint32_t addr, uint32_t in);
-static int vm_check(core_t *c, uint32_t addr, int write);
-static int user_mode(core_t *c);
-static void set_hilo(core_t *c, uint64_t val);
-static int except(core_t *c, uint8_t exc_code);
-static int except_vm(core_t *c, uint8_t exc_code, uint32_t badvaddr);
-
-static int add_overflows(uint32_t a, uint32_t b);
-static int sub_overflows(uint32_t a, uint32_t b);
+static int _rdw(core_t *c, uint32_t va, uint32_t *out, int ins);
+static int _wrw(core_t *c, uint32_t va, uint32_t in, uint8_t we);
 
 core_t *core_create(mem_t *m)
 {
@@ -459,6 +464,14 @@ int __core_step(core_t *c)
                 return except(c, EXC_RI);
             }
             switch (FUNCT(ins)) {
+            case CP0_FUNCT_TLBWI:
+                ret = core_cp0_tlbwi(c, &c->cp0);
+                if (ret) return ret;
+                break;
+            case CP0_FUNCT_TLBWR:
+                ret = core_cp0_tlbwr(c, &c->cp0);
+                if (ret) return ret;
+                break;
             case CP0_FUNCT_ERET:
                 if (user_mode(c)) { return except(c, EXC_RI); }
                 ret = core_cp0_eret(c, &c->cp0, &newpc);
@@ -502,125 +515,16 @@ void core_dump_regs(core_t *c, FILE *out)
     core_cp0_dump_regs(c, &c->cp0, out);
 }
 
-
-
-static int rdb(core_t *c, uint32_t addr, uint8_t *out)
+static int add_overflows(uint32_t a, uint32_t b)
 {
-    uint32_t w_addr;
-    uint32_t w;
-    int ret;
-
-    w_addr = addr & ~0x3;
-    if (!vm_check(c, w_addr, 0)) { return except_vm(c, EXC_ADEL, addr); }
-
-    ret = mem_read(c->mem, w_addr, &w);
-    if (ret) { return except_vm(c, EXC_DBE, addr); }
-    *out = (uint8_t)(w >> (8 * (addr - w_addr)));
-    return 0;
+    uint32_t c = a + b;
+    return ((a >> 31) == (b >> 31)) && ((a >> 31) != (c >> 31));
 }
 
-static int rdh(core_t *c, uint32_t addr, uint16_t *out)
+static int sub_overflows(uint32_t a, uint32_t b)
 {
-    uint32_t w_addr;
-    uint32_t w;
-    int ret;
-
-    if (addr & 0x1) { return except_vm(c, EXC_ADEL, addr); }
-    w_addr = addr & ~0x3;
-    if (!vm_check(c, w_addr, 0)) { return except_vm(c, EXC_ADEL, addr); }
-
-    ret = mem_read(c->mem, w_addr, &w);
-    if (ret) { return except_vm(c, EXC_DBE, addr); }
-    *out = (uint16_t)(w >> (8 * (addr - w_addr)));
-    return 0;
-}
-
-static int rdw(core_t *c, uint32_t addr, uint32_t *out)
-{
-    int ret;
-
-    if (addr & 0x3) { return except_vm(c, EXC_ADEL, addr); }
-    if (!vm_check(c, addr, 0)) { return except_vm(c, EXC_ADEL, addr); }
-
-    ret = mem_read(c->mem, addr, out);
-    if (ret) { return except_vm(c, EXC_DBE, addr); }
-    return 0;
-}
-
-static int rdiw(core_t *c, uint32_t addr, uint32_t *out)
-{
-    int ret;
-
-    if (addr & 0x3) { return except_vm(c, EXC_ADEL, addr); }
-    if (!vm_check(c, addr, 0)) { return except_vm(c, EXC_ADEL, addr); }
-
-    ret = mem_read(c->mem, addr, out);
-    if (ret) { return except_vm(c, EXC_IBE, addr); }
-    return 0;
-}
-
-static int wrb(core_t *c, uint32_t addr, uint8_t in)
-{
-    uint32_t w_addr;
-    int offset;
-    int ret;
-
-    w_addr = addr & ~0x3;
-    offset = addr &  0x3;
-    if (!vm_check(c, w_addr, 1)) { return except_vm(c, EXC_ADES, addr); }
-
-    ret = mem_write(c->mem, w_addr,
-                    (uint32_t)in << (8 * offset),
-                    0x1 << offset);
-    if (ret) { return except_vm(c, EXC_DBE, addr); }
-    return 0;
-}
-
-static int wrh(core_t *c, uint32_t addr, uint16_t in)
-{
-    uint32_t w_addr;
-    int offset;
-    int ret;
-
-    if (addr & 0x1) { return except_vm(c, EXC_ADES, addr); }
-    w_addr = addr & ~0x3;
-    offset = addr &  0x3;
-    if (!vm_check(c, w_addr, 1)) { return except_vm(c, EXC_ADES, addr); }
-
-    ret = mem_write(c->mem, w_addr,
-                    (uint32_t)in << (8 * offset),
-                    0x3 << offset);
-    if (ret) { return except_vm(c, EXC_DBE, addr); }
-    return 0;
-}
-
-static int wrw(core_t *c, uint32_t addr, uint32_t in)
-{
-    int ret;
-
-    if (addr & 0x3) { return except_vm(c, EXC_ADES, addr); }
-    if (!vm_check(c, addr, 1)) { return except_vm(c, EXC_ADES, addr); }
-
-    ret = mem_write(c->mem, addr, in, 0xF);
-    if (ret) { return except_vm(c, EXC_DBE, addr); }
-    return 0;
-}
-
-static int vm_check(core_t *c, uint32_t addr, int write)
-{
-    if (user_mode(c) && (addr & 0x80000000)) {
-        debug_printf(CORE, DETAIL,
-                "Attempt to access kernel memory at %08x in user mode.\n",
-                addr);
-        return 0;
-    }
-
-    return 1;
-}
-
-static int user_mode(core_t *c)
-{
-    return core_cp0_user_mode(c, &c->cp0);
+    uint32_t c = a - b;
+    return ((a >> 31) != (b >> 31)) && ((a >> 31) != (c >> 31));
 }
 
 static void set_hilo(core_t *c, uint64_t val)
@@ -651,14 +555,108 @@ static int except_vm(core_t *c, uint8_t exc_code, uint32_t badvaddr)
     return except(c, exc_code);
 }
 
-static int add_overflows(uint32_t a, uint32_t b)
+static int user_mode(core_t *c)
 {
-    uint32_t c = a + b;
-    return ((a >> 31) == (b >> 31)) && ((a >> 31) != (c >> 31));
+    return core_cp0_user_mode(c, &c->cp0);
 }
 
-static int sub_overflows(uint32_t a, uint32_t b)
+static int translate(core_t *c, uint32_t va, uint32_t *pa_out, int write)
 {
-    uint32_t c = a - b;
-    return ((a >> 31) != (b >> 31)) && ((a >> 31) != (c >> 31));
+    if (filter_misc(c->filter, FILTER_MISC_VM)) {
+        return core_cp0_translate(c, &c->cp0, va, pa_out, write);
+    } else {
+        *pa_out = va;
+        return 0;
+    }
 }
+
+static int rdb(core_t *c, uint32_t addr, uint8_t *out)
+{
+    uint32_t w;
+    int ret;
+
+    ret = _rdw(c, addr & ~0x3, &w, 0);
+    if (ret) { return ret; }
+
+    *out = (uint8_t)(w >> (8 * (addr & 0x3)));
+    return 0;
+}
+
+static int rdh(core_t *c, uint32_t addr, uint16_t *out)
+{
+    uint32_t w;
+    int ret;
+
+    if (addr & 0x1) { return except_vm(c, EXC_ADEL, addr); }
+
+    ret = _rdw(c, addr & ~0x3, &w, 0);
+    if (ret) { return ret; }
+
+    *out = (uint16_t)(w >> (8 * (addr & 0x3)));
+    return 0;
+}
+
+static int rdw(core_t *c, uint32_t addr, uint32_t *out)
+{
+    if (addr & 0x3) { return except_vm(c, EXC_ADEL, addr); }
+    return _rdw(c, addr, out, 0);
+}
+
+static int rdiw(core_t *c, uint32_t addr, uint32_t *out)
+{
+    if (addr & 0x3) { return except_vm(c, EXC_ADEL, addr); }
+    return _rdw(c, addr, out, 1);
+}
+
+static int wrb(core_t *c, uint32_t addr, uint8_t in)
+{
+    int off = addr & 0x3;
+    return _wrw(c, addr & ~0x3, (uint32_t)in << (8 * off), 0x1 << off);
+}
+
+static int wrh(core_t *c, uint32_t addr, uint16_t in)
+{
+    int off = addr & 0x3;
+    if (addr & 0x1) { return except_vm(c, EXC_ADES, addr); }
+    return _wrw(c, addr & ~0x3, (uint32_t)in << (8 * off), 0x3 << off);
+}
+
+static int wrw(core_t *c, uint32_t addr, uint32_t in)
+{
+    if (addr & 0x3) { return except_vm(c, EXC_ADES, addr); }
+    return _wrw(c, addr, in, 0xf);
+}
+
+static int _rdw(core_t *c, uint32_t va, uint32_t *out, int ins)
+{
+    uint32_t pa;
+    int ret;
+
+    assert(!(va & 0x3));
+
+    ret = translate(c, va, &pa, 0);
+    if (ret) { return ret; }
+
+    ret = mem_read(c->mem, pa, out);
+    if (ret) { return except(c, ins ? EXC_IBE : EXC_DBE); }
+
+    return 0;
+}
+
+static int _wrw(core_t *c, uint32_t va, uint32_t in, uint8_t we)
+{
+    uint32_t pa;
+    int ret;
+
+    assert(!(va & 0x3));
+
+    ret = translate(c, va, &pa, 1);
+    if (ret) { return ret; }
+
+    ret = mem_write(c->mem, pa, in, we);
+    if (ret) { return except(c, EXC_DBE); }
+
+    return 0;
+}
+
+
