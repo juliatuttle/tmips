@@ -570,12 +570,19 @@ static int translate(core_t *c, uint32_t va, uint32_t *pa_out, int write)
     }
 }
 
+/*
+ Note: The virtual address passed to _rdw or _wrw is the address of the actual
+       byte, halfword, or word being read, in case a TLB exception is thrown.
+       It will be truncated before reading or writing memory, and the caller
+       still needs to shift data appropriately.
+ */
+
 static int rdb(core_t *c, uint32_t addr, uint8_t *out)
 {
     uint32_t w;
     int ret;
 
-    ret = _rdw(c, addr & ~0x3, &w, 0);
+    ret = _rdw(c, addr, &w, 0);
     if (ret) { return ret; }
 
     *out = (uint8_t)(w >> (8 * (addr & 0x3)));
@@ -589,7 +596,7 @@ static int rdh(core_t *c, uint32_t addr, uint16_t *out)
 
     if (addr & 0x1) { return except_vm(c, EXC_ADEL, addr); }
 
-    ret = _rdw(c, addr & ~0x3, &w, 0);
+    ret = _rdw(c, addr, &w, 0);
     if (ret) { return ret; }
 
     *out = (uint16_t)(w >> (8 * (addr & 0x3)));
@@ -611,14 +618,14 @@ static int rdiw(core_t *c, uint32_t addr, uint32_t *out)
 static int wrb(core_t *c, uint32_t addr, uint8_t in)
 {
     int off = addr & 0x3;
-    return _wrw(c, addr & ~0x3, (uint32_t)in << (8 * off), 0x1 << off);
+    return _wrw(c, addr, (uint32_t)in << (8 * off), 0x1 << off);
 }
 
 static int wrh(core_t *c, uint32_t addr, uint16_t in)
 {
     int off = addr & 0x3;
     if (addr & 0x1) { return except_vm(c, EXC_ADES, addr); }
-    return _wrw(c, addr & ~0x3, (uint32_t)in << (8 * off), 0x3 << off);
+    return _wrw(c, addr, (uint32_t)in << (8 * off), 0x3 << off);
 }
 
 static int wrw(core_t *c, uint32_t addr, uint32_t in)
@@ -632,12 +639,10 @@ static int _rdw(core_t *c, uint32_t va, uint32_t *out, int ins)
     uint32_t pa;
     int ret;
 
-    assert(!(va & 0x3));
-
     ret = translate(c, va, &pa, 0);
     if (ret) { return ret; }
 
-    ret = mem_read(c->mem, pa, out);
+    ret = mem_read(c->mem, pa & ~0x3, out);
     if (ret) { return except(c, ins ? EXC_IBE : EXC_DBE); }
 
     return 0;
@@ -648,12 +653,10 @@ static int _wrw(core_t *c, uint32_t va, uint32_t in, uint8_t we)
     uint32_t pa;
     int ret;
 
-    assert(!(va & 0x3));
-
     ret = translate(c, va, &pa, 1);
     if (ret) { return ret; }
 
-    ret = mem_write(c->mem, pa, in, we);
+    ret = mem_write(c->mem, pa & ~0x03, in, we);
     if (ret) { return except(c, EXC_DBE); }
 
     return 0;
