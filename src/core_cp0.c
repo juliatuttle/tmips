@@ -53,6 +53,7 @@ static int get_mode(core_t *c, core_cp0_t *cp0);
 void core_cp0_reset(core_t *c, core_cp0_t *cp0)
 {
     memset(cp0->r, 0, sizeof(cp0->r));
+    cp0->r[CP0_STATUS] = STATUS_EXL;
 }
 
 int core_cp0_step(core_t *c, core_cp0_t *cp0)
@@ -96,7 +97,7 @@ int core_cp0_except(core_t *c, core_cp0_t *cp0, uint8_t exc_code)
     epc = core_get_pc(c);
     cp0->r[CP0_EPC] = epc;
     cp0->r[CP0_CAUSE] = exc_code << 2;
-    cp0->r[CP0_STATUS] &= ~STATUS_UM;
+    cp0->r[CP0_STATUS] |= STATUS_EXL;
     debug_printf(EXC, DETAIL,
             "Took exception: epc=%08x exc_code=%d (%s)\n",
             epc, exc_code, exc_text[exc_code]);
@@ -109,7 +110,7 @@ int core_cp0_eret(core_t *c, core_cp0_t *cp0, uint32_t *new_pc)
 {
     assert(new_pc);
 
-    cp0->r[CP0_STATUS] |= STATUS_UM;
+    cp0->r[CP0_STATUS] &= ~STATUS_EXL;
     *new_pc = cp0->r[CP0_EPC];
     debug_printf(EXC, DETAIL, "ERET returning to epc=%08x\n", cp0->r[CP0_EPC]);
 
@@ -118,7 +119,7 @@ int core_cp0_eret(core_t *c, core_cp0_t *cp0, uint32_t *new_pc)
 
 int core_cp0_user_mode(core_t *c, core_cp0_t *cp0)
 {
-    return !!(cp0->r[CP0_STATUS] & STATUS_UM);
+    return get_mode(c, cp0) == U_MODE;
 }
 
 
@@ -256,7 +257,12 @@ static struct segment *find_seg(uint32_t addr, int mode)
 
 static int get_mode(core_t *c, core_cp0_t *cp0)
 {
-    return (cp0->r[CP0_STATUS] & STATUS_UM) ? U_MODE : K_MODE;
+    uint32_t status = cp0->r[CP0_STATUS];
+    if ((status & STATUS_UM) && !(status & STATUS_EXL)) {
+        return U_MODE;
+    } else {
+        return K_MODE;
+    }
 }
 
 
