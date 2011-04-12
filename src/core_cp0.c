@@ -162,7 +162,7 @@ int core_cp0_translate(core_t *c, core_cp0_t *cp0, uint32_t va,
     }
 
     if (seg->flags & UNMAPPED) {
-        *pa_out = va;
+        *pa_out = va - seg->base;
         goto out;
     }
 
