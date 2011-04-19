@@ -7,6 +7,7 @@
 #include "core_priv.h"
 #include "debug.h"
 #include "exc.h"
+#include "filter.h"
 
 #define EXC_BASE 0x80000000
 
@@ -53,7 +54,7 @@ static int get_mode(core_t *c, core_cp0_t *cp0);
 void core_cp0_reset(core_t *c, core_cp0_t *cp0)
 {
     memset(cp0->r, 0, sizeof(cp0->r));
-    cp0->r[CP0_STATUS] = STATUS_EXL;
+    cp0->r[CP0_STATUS] = STATUS_UM | STATUS_EXL;
 }
 
 int core_cp0_step(core_t *c, core_cp0_t *cp0)
