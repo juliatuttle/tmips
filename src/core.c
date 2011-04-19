@@ -565,8 +565,12 @@ static int translate(core_t *c, uint32_t va, uint32_t *pa_out, int write)
     if ((!c->filter) || filter_misc(c->filter, FILTER_MISC_VM)) {
         return core_cp0_translate(c, &c->cp0, va, pa_out, write);
     } else {
-        *pa_out = va;
-        return 0;
+        if (user_mode(c) && (va & 0x80000000)) {
+            return except_vm(c, write ? EXC_ADES : EXC_ADEL, va);
+        } else {
+            *pa_out = va;
+            return 0;
+        }
     }
 }
 
